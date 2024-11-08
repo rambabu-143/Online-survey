@@ -3,7 +3,7 @@ import AdminDashboard from './components/admin-dashboard'
 
 const page = () => {
     return (
-        <div>
+        <div >
             <AdminDashboard />
         </div>
     )
