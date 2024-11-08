@@ -10,7 +10,7 @@ interface ITemplate extends Document {
 const templateSchema = new Schema<ITemplate>({
     title: { type: String, required: true },
     description: { type: String },
-   questions: [{
+    questions: [{
         id: String,
         type: {
             type: String,
