@@ -19,7 +19,7 @@ const navItems = [
     { name: 'Survey Management', href: '/admin/survey-management', icon: FileText },
     { name: 'Template Management', href: '/admin/survey-templates', icon: FileText },
     { name: 'Survey Analytics', href: '/analytics', icon: PieChart },
-    { name: 'User Management', href: '/users', icon: Users },
+    { name: 'User Management', href: '/admin/users-mangement', icon: Users },
     { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

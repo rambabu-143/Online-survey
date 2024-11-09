@@ -17,9 +17,9 @@ export default function RootLayout({
 }) {
     return (
         <SidebarProvider>
-            <SidebarNav />
+            <SidebarNav/>
             <main className='w-full'>
-                <SidebarTrigger />
+                <SidebarTrigger className='bg-green-600 p-4 text-3xl' />
                 {children}
             </main>
         </SidebarProvider>
