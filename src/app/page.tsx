@@ -25,9 +25,16 @@ export default async function Home() {
               <Link href='/admin' className="bg-blue-600 text-white px-4 py-2 rounded-lg shadow hover:bg-blue-700">
                 Go to Admin Page
               </Link>
-              <div className="pt-6 text-base leading-6 font-bold sm:text-lg sm:leading-7">
-                <SignOutButton />
-              </div>
+
+              {session ?
+                <div className="pt-6 text-base leading-6 font-bold sm:text-lg sm:leading-7">
+                  <SignOutButton />
+                </div>
+                :
+                <Link href='/signin' className="bg-black text-white px-4 py-2 rounded-lg shadow hover:bg-gray-900">
+                  Signin
+                </Link>
+              }
             </div>
           </div>
         </div>
