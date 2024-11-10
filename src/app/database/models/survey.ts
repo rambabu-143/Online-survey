@@ -1,11 +1,20 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-interface ISurvey extends Document {
+export interface ISurvey extends Document {
     title: string;
     description?: string;
     creatorId: mongoose.Types.ObjectId;
     status: 'draft' | 'active' | 'closed';
-    questions: mongoose.Types.ObjectId[];
+    questions: {
+        id: string;
+        type: 'multiple-choice' | 'text-input' | 'rating-scale';
+        text: string;
+        options?: string[];
+        required: boolean;
+        min?: number;
+        max?: number;
+    }[];
+    assignedGroups: mongoose.Types.ObjectId[];
     createdAt: Date;
     updatedAt: Date;
     theme?: string;
@@ -14,7 +23,7 @@ interface ISurvey extends Document {
 const surveySchema = new Schema<ISurvey>({
     title: { type: String, required: true },
     description: { type: String },
-    creatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: false },
+    creatorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     status: { type: String, enum: ['draft', 'active', 'closed'], default: 'draft' },
     questions: [{
         id: String,
@@ -29,10 +38,12 @@ const surveySchema = new Schema<ISurvey>({
         min: Number,
         max: Number,
     }],
+    assignedGroups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
     theme: { type: String }
 });
 
-const Survey = mongoose.models.Survey || mongoose.model('Survey', surveySchema);
+const Survey = mongoose.models.Survey || mongoose.model<ISurvey>('Survey', surveySchema);
+
 export default Survey;

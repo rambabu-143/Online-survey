@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,13 +8,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
+import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp, Users } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp, FileText } from "lucide-react"
+import { useRouter } from "next/navigation"
 
 interface Question {
   id: string
-  type: "multiple-choice" | "text-input" | "rating-scale"
+  type: 'multiple-choice' | 'text-input' | 'rating-scale'
   text: string
   options?: string[]
   required: boolean
@@ -23,195 +22,232 @@ interface Question {
   max?: number
 }
 
-interface Template {
+interface Survey {
   _id?: string
   title: string
   description?: string
+  creatorId: string
+  status: 'draft' | 'active' | 'closed'
   questions: Question[]
-  createdAt?: Date
+  createdAt: string
+  updatedAt: string
+  theme?: string
+  assignedGroups: string[]
 }
 
-const questionTypes = [
-  { id: "text-input", name: "Text Input" },
-  { id: "rating-scale", name: "Rating Scale" },
-  { id: "multiple-choice", name: "Multiple Choice" },
+interface UserGroup {
+  _id: string
+  name: string
+  description?: string
+  members: string[]
+}
+
+const statusOptions = [
+  { id: "draft", name: "Draft" },
+  { id: "active", name: "Active" },
+  { id: "closed", name: "Closed" },
 ] as const
 
-export default function TemplatesPage() {
-  const [templates, setTemplates] = useState<Template[]>([])
+const questionTypes = [
+  { id: "multiple-choice", name: "Multiple Choice" },
+  { id: "text-input", name: "Text Input" },
+  { id: "rating-scale", name: "Rating Scale" },
+] as const
+
+export default function SurveyManagement() {
+  const [surveys, setSurveys] = useState<Survey[]>([])
+  const [groups, setGroups] = useState<UserGroup[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
-  const [currentTemplate, setCurrentTemplate] = useState<Template | null>(null)
-  const [newTemplate, setNewTemplate] = useState<Template>({
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isAssignGroupsDialogOpen, setIsAssignGroupsDialogOpen] = useState(false)
+  const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null)
+  const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(null)
+  const [newSurvey, setNewSurvey] = useState<Survey>({
     title: "",
     description: "",
+    creatorId: "", // This should be set to the current user's ID in a real application
+    status: "draft",
     questions: [],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    assignedGroups: [],
   })
-  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set())
+  const [expandedSurveys, setExpandedSurveys] = useState<Set<string>>(new Set())
   const { toast } = useToast()
   const router = useRouter()
 
   useEffect(() => {
-    const fetchTemplates = async () => {
-      try {
-        const response = await fetch("/api/templates")
-        if (!response.ok) throw new Error("Failed to fetch templates")
-        const data: Template[] = await response.json()
-        setTemplates(data)
-      } catch (error) {
-        console.error("Error fetching templates:", error)
-        toast({
-          title: "Error",
-          description: "Failed to fetch templates. Please try again.",
-          variant: "destructive",
-        })
-      }
+    fetchSurveys()
+    fetchGroups()
+  }, [])
+
+  const fetchSurveys = async () => {
+    try {
+      const response = await fetch("/api/surveys")
+      if (!response.ok) throw new Error("Failed to fetch surveys")
+      const data: Survey[] = await response.json()
+      setSurveys(data)
+    } catch (error) {
+      console.error("Error fetching surveys:", error)
+      toast({ title: "Error", description: "Failed to fetch surveys", variant: "destructive" })
     }
+  }
 
-    fetchTemplates()
-  }, [toast])
+  const fetchGroups = async () => {
+    try {
+      const response = await fetch("/api/groups")
+      if (!response.ok) throw new Error("Failed to fetch groups")
+      const data: UserGroup[] = await response.json()
+      setGroups(data)
+    } catch (error) {
+      console.error("Error fetching groups:", error)
+      toast({ title: "Error", description: "Failed to fetch groups", variant: "destructive" })
+    }
+  }
 
-  const handleCreateTemplate = () => {
-    setCurrentTemplate(null)
-    setNewTemplate({
+  const handleCreateSurvey = () => {
+    setCurrentSurvey(null)
+    setNewSurvey({
       title: "",
       description: "",
+      creatorId: "",
+      status: "draft",
       questions: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      assignedGroups: [],
     })
     setIsDialogOpen(true)
   }
 
-  const handleEditTemplate = (template: Template) => {
-    setCurrentTemplate(template)
-    setNewTemplate({ ...template })
+  const handleEditSurvey = (survey: Survey) => {
+    setCurrentSurvey(survey)
+    setNewSurvey({ ...survey })
     setIsDialogOpen(true)
   }
 
-  const handleDeleteTemplate = async (id: string) => {
+  const handleDeleteSurvey = async (id: string) => {
     try {
-      const response = await fetch(`/api/templates/${id}`, {
-        method: "DELETE",
-      })
-      if (!response.ok) throw new Error("Failed to delete template")
-      setTemplates(templates.filter((template) => template._id !== id))
-      toast({
-        title: "Template Deleted",
-        description: "The template has been successfully deleted.",
-      })
+      const response = await fetch(`/api/surveys/${id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Failed to delete survey")
+      setSurveys(surveys.filter((survey) => survey._id !== id))
+      toast({ title: "Success", description: "Survey deleted successfully" })
     } catch (error) {
-      console.error("Error deleting template:", error)
-      toast({
-        title: "Error",
-        description: "Failed to delete the template. Please try again.",
-        variant: "destructive",
-      })
+      console.error("Error deleting survey:", error)
+      toast({ title: "Error", description: "Failed to delete survey", variant: "destructive" })
+    } finally {
+      setIsDeleteDialogOpen(false)
+      setSurveyToDelete(null)
     }
   }
 
-  const handleSaveTemplate = async () => {
+  const handleSaveSurvey = async () => {
     try {
-      if (currentTemplate) {
-        const response = await fetch(`/api/templates/${currentTemplate._id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newTemplate),
-        })
-        if (!response.ok) throw new Error("Failed to update template")
-        const updatedTemplate = await response.json()
-        setTemplates(
-          templates.map((template) =>
-            template._id === currentTemplate._id ? updatedTemplate : template
-          )
-        )
-        toast({
-          title: "Template Updated",
-          description: "The template has been successfully updated.",
-        })
-      } else {
-        const response = await fetch("/api/templates", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(newTemplate),
-        })
-        if (!response.ok) throw new Error("Failed to create template")
-        const newTemplateData = await response.json()
-        setTemplates([...templates, newTemplateData])
-        toast({
-          title: "Template Created",
-          description: "A new template has been successfully created.",
-        })
-      }
-      setIsDialogOpen(false)
-    } catch (error) {
-      console.error("Error saving template:", error)
-      toast({
-        title: "Error",
-        description: "Failed to save the template. Please try again.",
-        variant: "destructive",
+      const surveyData = { ...newSurvey, updatedAt: new Date().toISOString() }
+      const url = currentSurvey ? `/api/surveys/${currentSurvey._id}` : "/api/surveys"
+      const method = currentSurvey ? "PUT" : "POST"
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(surveyData),
       })
+
+      if (!response.ok) throw new Error("Failed to save survey")
+
+      const savedSurvey = await response.json()
+      if (currentSurvey) {
+        setSurveys(surveys.map((survey) => (survey._id === savedSurvey._id ? savedSurvey : survey)))
+      } else {
+        setSurveys([...surveys, savedSurvey])
+      }
+
+      setIsDialogOpen(false)
+      toast({ title: "Success", description: `Survey ${currentSurvey ? "updated" : "created"} successfully` })
+    } catch (error) {
+      console.error("Error saving survey:", error)
+      toast({ title: "Error", description: "Failed to save survey", variant: "destructive" })
     }
+  }
+
+  const handleAssignGroups = async (surveyId: string, groupIds: string[]) => {
+    try {
+      const response = await fetch(`/api/surveys/${surveyId}/assign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupIds }),
+      })
+
+      if (!response.ok) throw new Error("Failed to assign groups to survey")
+
+      const updatedSurvey = await response.json()
+      setSurveys(surveys.map((survey) => (survey._id === updatedSurvey._id ? updatedSurvey : survey)))
+      setIsAssignGroupsDialogOpen(false)
+      toast({ title: "Success", description: "Groups assigned to survey successfully" })
+    } catch (error) {
+      console.error("Error assigning groups to survey:", error)
+      toast({ title: "Error", description: "Failed to assign groups to survey", variant: "destructive" })
+    }
+  }
+
+  const toggleExpandSurvey = (surveyId: string) => {
+    setExpandedSurveys((prev) => {
+      const newSet = new Set(prev)
+      if (newSet.has(surveyId)) {
+        newSet.delete(surveyId)
+      } else {
+        newSet.add(surveyId)
+      }
+      return newSet
+    })
   }
 
   const handleAddQuestion = () => {
     const newQuestion: Question = {
       id: Date.now().toString(),
-      text: "",
       type: "text-input",
+      text: "",
       required: false,
     }
-    setNewTemplate({
-      ...newTemplate,
-      questions: [...newTemplate.questions, newQuestion],
-    })
+    setNewSurvey({ ...newSurvey, questions: [...newSurvey.questions, newQuestion] })
   }
 
   const handleUpdateQuestion = (questionId: string, updates: Partial<Question>) => {
-    setNewTemplate({
-      ...newTemplate,
-      questions: newTemplate.questions.map((q) =>
+    setNewSurvey({
+      ...newSurvey,
+      questions: newSurvey.questions.map((q) =>
         q.id === questionId ? { ...q, ...updates } : q
       ),
     })
   }
 
   const handleRemoveQuestion = (questionId: string) => {
-    setNewTemplate({
-      ...newTemplate,
-      questions: newTemplate.questions.filter((q) => q.id !== questionId),
-    })
-  }
-
-  const toggleExpandTemplate = (templateId: string) => {
-    setExpandedTemplates((prev) => {
-      const newSet = new Set(prev)
-      if (newSet.has(templateId)) {
-        newSet.delete(templateId)
-      } else {
-        newSet.add(templateId)
-      }
-      return newSet
+    setNewSurvey({
+      ...newSurvey,
+      questions: newSurvey.questions.filter((q) => q.id !== questionId),
     })
   }
 
   const handleAddOption = (questionId: string) => {
-    setNewTemplate({
-      ...newTemplate,
-      questions: newTemplate.questions.map((q) =>
+    setNewSurvey({
+      ...newSurvey,
+      questions: newSurvey.questions.map((q) =>
         q.id === questionId
-          ? { ...q, options: [...(q.options || []), ""] }
+          ? { ...q, options: [...(q.options || []), `Option ${(q.options?.length || 0) + 1}`] }
           : q
       ),
     })
   }
 
-  const handleUpdateOption = (questionId: string, optionIndex: number, value: string) => {
-    setNewTemplate({
-      ...newTemplate,
-      questions: newTemplate.questions.map((q) =>
+  const handleUpdateOption = (questionId: string, optionIndex: number, newValue: string) => {
+    setNewSurvey({
+      ...newSurvey,
+      questions: newSurvey.questions.map((q) =>
         q.id === questionId
           ? {
             ...q,
-            options: q.options?.map((opt, index) =>
-              index === optionIndex ? value : opt
+            options: (q.options || []).map((opt, index) =>
+              index === optionIndex ? newValue : opt
             ),
           }
           : q
@@ -220,151 +256,173 @@ export default function TemplatesPage() {
   }
 
   const handleRemoveOption = (questionId: string, optionIndex: number) => {
-    setNewTemplate({
-      ...newTemplate,
-      questions: newTemplate.questions.map((q) =>
+    setNewSurvey({
+      ...newSurvey,
+      questions: newSurvey.questions.map((q) =>
         q.id === questionId
-          ? {
-            ...q,
-            options: q.options?.filter((_, index) => index !== optionIndex),
-          }
+          ? { ...q, options: (q.options || []).filter((_, index) => index !== optionIndex) }
           : q
       ),
     })
   }
 
-  const handleUseTemplate = async (template: Template) => {
-    try {
-      const response = await fetch("/api/surveys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: `Survey based on ${template.title}`,
-          description: template.description,
-          questions: template.questions,
-        }),
-      })
-      if (!response.ok) throw new Error("Failed to create survey from template")
-      const newSurvey = await response.json()
-      toast({
-        title: "Survey Created",
-        description: `A new survey has been created based on the "${template.title}" template.`,
-      })
-    } catch (error) {
-      console.error("Error creating survey from template:", error)
-      toast({
-        title: "Error",
-        description: "Failed to create a survey from the template. Please try again.",
-        variant: "destructive",
-      })
-    }
-  }
-
   return (
-    <div className="container mx-auto p-4 space-y-4">
+    <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold">Survey Templates</h1>
-          <p className="text-muted-foreground">Create and manage survey templates</p>
+          <h1 className="text-3xl font-bold">Survey Management</h1>
+          <p className="text-muted-foreground">Create and manage your surveys</p>
         </div>
-        <Button onClick={handleCreateTemplate}>
-          <Plus className="mr-2 h-4 w-4" /> Create Template
+        <Button onClick={handleCreateSurvey}>
+          <Plus className="mr-2 h-4 w-4" /> Create Survey
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {templates.map((template) => (
-          <Card key={template._id} className="flex flex-col">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {surveys.map((survey) => (
+          <Card key={survey._id} className="flex flex-col">
             <CardHeader>
-              <CardTitle>{template.title}</CardTitle>
-              <CardDescription>{template.description}</CardDescription>
+              <CardTitle>{survey.title}</CardTitle>
+              <CardDescription>{survey.description}</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <span>{template.questions.length} questions</span>
+                <span className={`px-2 py-1 rounded-full ${survey.status === 'active' ? 'bg-green-100 text-green-800' :
+                  survey.status === 'closed' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                  {survey.status.charAt(0).toUpperCase() + survey.status.slice(1)}
+                </span>
+                <span>•</span>
+                <span>{survey.questions.length} questions</span>
+                <span>•</span>
+                <span>{survey.assignedGroups.length} groups</span>
               </div>
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                onClick={() => toggleExpandTemplate(template._id!)}
-              >
-                {expandedTemplates.has(template._id!) ? (
+              <Button variant="ghost" className="w-full justify-start" onClick={() => toggleExpandSurvey(survey._id!)}>
+                {expandedSurveys.has(survey._id!) ? (
                   <>
-                    <ChevronUp className="mr-2 h-4 w-4" /> Hide Questions
+                    <ChevronUp className="mr-2 h-4 w-4" /> Hide Details
                   </>
                 ) : (
                   <>
-                    <ChevronDown className="mr-2 h-4 w-4" /> Show Questions
+                    <ChevronDown className="mr-2 h-4 w-4" /> Show Details
                   </>
                 )}
               </Button>
-              {expandedTemplates.has(template._id!) && (
-                <ul className="mt-2 space-y-2">
-                  {template.questions.map((question, index) => (
-                    <li key={question.id} className="text-sm">
-                      {index + 1}. {question.text}
-                      <span className="text-muted-foreground ml-1">({question.type})</span>
-                    </li>
-                  ))}
-                </ul>
+              {expandedSurveys.has(survey._id!) && (
+                <div className="mt-2 space-y-2 text-sm">
+                  <p>Created: {new Date(survey.createdAt).toLocaleDateString()}</p>
+                  <p>Updated: {new Date(survey.updatedAt).toLocaleDateString()}</p>
+                  <p>Theme: {survey.theme || 'Default'}</p>
+                  <div>
+                    <p className="font-semibold">Questions:</p>
+                    <ul className="list-disc list-inside">
+                      {survey.questions.map((question) => (
+                        <li key={question.id}>{question.text}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div>
+                    <p className="font-semibold">Assigned Groups:</p>
+                    <ul className="list-disc list-inside">
+                      {survey.assignedGroups.map((groupId) => {
+                        const group = groups.find(g => g._id === groupId)
+                        return <li key={groupId}>{group ? group.name : 'Unknown Group'}</li>
+                      })}
+                    </ul>
+                  </div>
+                </div>
               )}
             </CardContent>
             <CardFooter className="flex justify-between border-t pt-4">
-              <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template)}>
+              <Button variant="outline" size="sm" onClick={() => handleEditSurvey(survey)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleUseTemplate(template)}
-                className="text-primary hover:text-primary"
-              >
-                <FileText className="mr-2 h-4 w-4" /> Use Template
+              <Button variant="outline" size="sm" onClick={() => {
+                setCurrentSurvey(survey)
+                setIsAssignGroupsDialogOpen(true)
+              }}>
+                <Users className="mr-2 h-4 w-4" /> Assign Groups
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteTemplate(template._id!)}
-                className="text-destructive hover:text-destructive"
-              >
-                <Trash2 className="mr-2 h-4 w-4" /> Delete
-              </Button>
+              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" onClick={() => setSurveyToDelete(survey._id!)} className="text-destructive hover:text-destructive">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Are you sure you want to delete this survey?</DialogTitle>
+                    <DialogDescription>
+                      This action cannot be undone. This will permanently delete the survey and all its data.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
+                    <Button variant="destructive" onClick={() => surveyToDelete && handleDeleteSurvey(surveyToDelete)}>Delete</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </CardFooter>
           </Card>
         ))}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{currentTemplate ? "Edit Template" : "Create New Template"}</DialogTitle>
+            <DialogTitle>{currentSurvey ? "Edit Survey" : "Create New Survey"}</DialogTitle>
             <DialogDescription>
-              {currentTemplate
-                ? "Edit the details and questions of your survey template."
-                : "Create a new survey template with questions for future use."}
+              {currentSurvey ? "Edit the details and questions of your survey." : "Create a new survey with questions."}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="templateTitle">Template Title</Label>
-              <Input
-                id="templateTitle"
-                value={newTemplate.title}
-                onChange={(e) => setNewTemplate({ ...newTemplate, title: e.target.value })}
-                placeholder="Enter template title"
-                className="mt-1.5"
-              />
+
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="surveyTitle">Survey Title</Label>
+                <Input
+                  id="surveyTitle"
+                  value={newSurvey.title}
+                  onChange={(e) => setNewSurvey({ ...newSurvey, title: e.target.value })}
+                  placeholder="Enter survey title"
+                  className="mt-1.5"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="surveyStatus">Status</Label>
+                <Select
+                  value={newSurvey.status}
+                  onValueChange={(value) => setNewSurvey({ ...newSurvey, status: value as 'draft' | 'active' | 'closed' })}>
+                  <SelectTrigger className="w-full mt-1.5">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        {status.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
+
             <div>
-              <Label htmlFor="templateDescription">Description</Label>
+              <Label htmlFor="surveyDescription">Description</Label>
               <Textarea
-                id="templateDescription"
-                value={newTemplate.description}
-                onChange={(e) => setNewTemplate({ ...newTemplate, description: e.target.value })}
-                placeholder="Enter template description"
+                id="surveyDescription"
+                value={newSurvey.description}
+                onChange={(e) => setNewSurvey({
+                  ...newSurvey,
+                  description: e.target.value
+                })}
+                placeholder="Enter survey description"
                 className="mt-1.5"
               />
             </div>
+
             <div>
               <div className="flex justify-between items-center mb-2">
                 <Label>Questions</Label>
@@ -372,118 +430,160 @@ export default function TemplatesPage() {
                   <Plus className="mr-2 h-4 w-4" /> Add Question
                 </Button>
               </div>
-              <div className="space-y-3">
-                {newTemplate.questions.map((question) => (
-                  <div key={question.id} className="space-y-2 border p-3 rounded-md">
-                    <div className="flex items-start gap-3">
-                      <Input
-                        value={question.text}
-                        onChange={(e) =>
-                          handleUpdateQuestion(question.id, { text: e.target.value })
-                        }
-                        placeholder="Enter question text"
-                        className="flex-1"
-                      />
-                      <Select
-                        value={question.type}
-                        onValueChange={(value) =>
-                          handleUpdateQuestion(question.id, { type: value as Question["type"] })
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue>
-                            {question.type ? questionTypes.find(type => type.id === question.type)?.name : "Select Type"}
-                          </SelectValue>
-                        </SelectTrigger>
-                        <SelectContent>
-                          {questionTypes.map((type) => (
-                            <SelectItem key={type.id} value={type.id}>
-                              {type.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => handleRemoveQuestion(question.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`required-${question.id}`}
-                        checked={question.required}
-                        onCheckedChange={(checked) =>
-                          handleUpdateQuestion(question.id, { required: checked as boolean })
-                        }
-                      />
-                      <Label htmlFor={`required-${question.id}`}>Required</Label>
-                    </div>
-                    {question.type === "rating-scale" && (
-                      <div className="flex items-center space-x-2">
-                        <Input
-                          type="number"
-                          placeholder="Min"
-                          value={question.min || ""}
-                          onChange={(e) =>
-                            handleUpdateQuestion(question.id, { min: parseInt(e.target.value) })
-                          }
-                          className="w-20"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Max"
-                          value={question.max || ""}
-                          onChange={(e) =>
-                            handleUpdateQuestion(question.id, { max: parseInt(e.target.value) })
-                          }
-                          className="w-20"
-                        />
-                      </div>
-                    )}
-                    {question.type === "multiple-choice" && (
-                      <div className="space-y-2">
-                        {question.options?.map((option, index) => (
-                          <div key={index} className="flex items-center space-x-2">
-                            <Input
-                              value={option}
-                              onChange={(e) =>
-                                handleUpdateOption(question.id, index, e.target.value)
-                              }
-                              placeholder={`Option ${index + 1}`}
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleRemoveOption(question.id, index)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
+
+              <div className="space-y-4">
+                {newSurvey.questions.map((question, index) => (
+                  <Card key={question.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">Question {index + 1}</CardTitle>
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          onClick={() => handleAddOption(question.id)}
-                        >
-                          <Plus className="mr-2 h-4 w-4" /> Add Option
+                          onClick={() => handleRemoveQuestion(question.id)}
+                          className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    )}
-                  </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                          <Label htmlFor={`question-${question.id}`}>Question Text</Label>
+                          <Input
+                            id={`question-${question.id}`}
+                            value={question.text}
+                            onChange={(e) => handleUpdateQuestion(question.id, { text: e.target.value })}
+                            placeholder="Enter question text"
+                            className="mt-1.5"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor={`question-type-${question.id}`}>Type</Label>
+                          <Select
+                            value={question.type}
+                            onValueChange={(value) => handleUpdateQuestion(question.id, { type: value as Question["type"] })}>
+                            <SelectTrigger id={`question-type-${question.id}`} className="w-40 mt-1.5">
+                              <SelectValue placeholder="Type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {questionTypes.map((type) => (
+                                <SelectItem key={type.id} value={type.id}>
+                                  {type.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      {question.type === 'multiple-choice' && (
+                        <div className="space-y-2">
+                          <Label>Options</Label>
+                          {question.options?.map((option, optionIndex) => (
+                            <div key={optionIndex} className="flex items-center gap-2">
+                              <Input
+                                value={option}
+                                onChange={(e) => handleUpdateOption(question.id, optionIndex, e.target.value)}
+                                placeholder={`Option ${optionIndex + 1}`}
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveOption(question.id, optionIndex)}
+                                className="text-destructive hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button variant="outline" size="sm" onClick={() => handleAddOption(question.id)}>
+                            <Plus className="mr-2 h-4 w-4" /> Add Option
+                          </Button>
+                        </div>
+                      )}
+
+                      {question.type === 'rating-scale' && (
+                        <div className="space-y-2">
+                          <Label>Scale Range</Label>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              type="number"
+                              value={question.min || 1}
+                              onChange={(e) => handleUpdateQuestion(question.id, { min: parseInt(e.target.value) })}
+                              placeholder="Min"
+                              className="w-20"
+                            />
+                            <span>to</span>
+                            <Input
+                              type="number"
+                              value={question.max || 5}
+                              onChange={(e) => handleUpdateQuestion(question.id, { max: parseInt(e.target.value) })}
+                              placeholder="Max"
+                              className="w-20"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          id={`required-${question.id}`}
+                          checked={question.required}
+                          onChange={(e) => handleUpdateQuestion(question.id, { required: e.target.checked })}
+                          className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                        />
+                        <Label htmlFor={`required-${question.id}`}>Required</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>
-              Cancel
+            <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSaveSurvey}>
+              <Save className="mr-2 h-4 w-4" /> Save Survey
             </Button>
-            <Button onClick={handleSaveTemplate}>
-              <Save className="mr-2 h-4 w-4" /> Save
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAssignGroupsDialogOpen} onOpenChange={setIsAssignGroupsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Assign Groups to Survey</DialogTitle>
+            <DialogDescription>
+              Select the groups you want to assign to this survey.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {groups.map((group) => (
+              <div key={group._id} className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id={`group-${group._id}`}
+                  checked={currentSurvey?.assignedGroups.includes(group._id)}
+                  onChange={(e) => {
+                    if (currentSurvey) {
+                      const updatedGroups = e.target.checked
+                        ? [...currentSurvey.assignedGroups, group._id]
+                        : currentSurvey.assignedGroups.filter(id => id !== group._id)
+                      setCurrentSurvey({ ...currentSurvey, assignedGroups: updatedGroups })
+                    }
+                  }}
+                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                />
+                <Label htmlFor={`group-${group._id}`}>{group.name}</Label>
+              </div>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setIsAssignGroupsDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => currentSurvey && handleAssignGroups(currentSurvey._id!, currentSurvey.assignedGroups)}>
+              Save Assignments
             </Button>
           </DialogFooter>
         </DialogContent>

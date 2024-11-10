@@ -3,7 +3,10 @@ import SurveyAccess from '../components/survey-access-screen'
 
 const page = () => {
   return (
-    <div><SurveyAccess/></div>
+    <><SurveyAccess />
+
+
+    </>
   )
 }
 
