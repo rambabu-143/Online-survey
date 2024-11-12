@@ -10,8 +10,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
     await dbConnect()
-    const groupData = await request.json()
-    const newGroup = new Group(groupData)
+    const { name, description } = await request.json()
+
+    const newGroup = new Group({ name, description })
     await newGroup.save()
+
     return NextResponse.json(newGroup, { status: 201 })
 }

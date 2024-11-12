@@ -8,9 +8,10 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp, Users } from "lucide-react"
+import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp, Copy } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 interface Question {
   id: string
@@ -22,31 +23,13 @@ interface Question {
   max?: number
 }
 
-interface Survey {
+interface SurveyTemplate {
   _id?: string
   title: string
   description?: string
-  creatorId: string
-  status: 'draft' | 'active' | 'closed'
   questions: Question[]
   createdAt: string
-  updatedAt: string
-  theme?: string
-  assignedGroups: string[]
 }
-
-interface UserGroup {
-  _id: string
-  name: string
-  description?: string
-  members: string[]
-}
-
-const statusOptions = [
-  { id: "draft", name: "Draft" },
-  { id: "active", name: "Active" },
-  { id: "closed", name: "Closed" },
-] as const
 
 const questionTypes = [
   { id: "multiple-choice", name: "Multiple Choice" },
@@ -54,149 +37,134 @@ const questionTypes = [
   { id: "rating-scale", name: "Rating Scale" },
 ] as const
 
-export default function SurveyManagement() {
-  const [surveys, setSurveys] = useState<Survey[]>([])
-  const [groups, setGroups] = useState<UserGroup[]>([])
+export default function SurveyTemplateManagement() {
+  const [templates, setTemplates] = useState<SurveyTemplate[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isAssignGroupsDialogOpen, setIsAssignGroupsDialogOpen] = useState(false)
-  const [surveyToDelete, setSurveyToDelete] = useState<string | null>(null)
-  const [currentSurvey, setCurrentSurvey] = useState<Survey | null>(null)
-  const [newSurvey, setNewSurvey] = useState<Survey>({
+  const [templateToDelete, setTemplateToDelete] = useState<string | null>(null)
+  const [currentTemplate, setCurrentTemplate] = useState<SurveyTemplate | null>(null)
+  const [newTemplate, setNewTemplate] = useState<SurveyTemplate>({
     title: "",
     description: "",
-    creatorId: "", // This should be set to the current user's ID in a real application
-    status: "draft",
     questions: [],
     createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    assignedGroups: [],
   })
-  const [expandedSurveys, setExpandedSurveys] = useState<Set<string>>(new Set())
+  const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set())
   const { toast } = useToast()
   const router = useRouter()
+  const { data: session, status } = useSession()
 
   useEffect(() => {
-    fetchSurveys()
-    fetchGroups()
+    fetchTemplates()
   }, [])
 
-  const fetchSurveys = async () => {
+  const fetchTemplates = async () => {
     try {
-      const response = await fetch("/api/surveys")
-      if (!response.ok) throw new Error("Failed to fetch surveys")
-      const data: Survey[] = await response.json()
-      setSurveys(data)
+      const response = await fetch("/api/templates")
+      if (!response.ok) throw new Error("Failed to fetch survey templates")
+      const data: SurveyTemplate[] = await response.json()
+      setTemplates(data)
     } catch (error) {
-      console.error("Error fetching surveys:", error)
-      toast({ title: "Error", description: "Failed to fetch surveys", variant: "destructive" })
+      console.error("Error fetching survey templates:", error)
+      toast({ title: "Error", description: "Failed to fetch survey templates", variant: "destructive" })
     }
   }
 
-  const fetchGroups = async () => {
-    try {
-      const response = await fetch("/api/groups")
-      if (!response.ok) throw new Error("Failed to fetch groups")
-      const data: UserGroup[] = await response.json()
-      setGroups(data)
-    } catch (error) {
-      console.error("Error fetching groups:", error)
-      toast({ title: "Error", description: "Failed to fetch groups", variant: "destructive" })
-    }
-  }
-
-  const handleCreateSurvey = () => {
-    setCurrentSurvey(null)
-    setNewSurvey({
+  const handleCreateTemplate = () => {
+    setCurrentTemplate(null)
+    setNewTemplate({
       title: "",
       description: "",
-      creatorId: "",
-      status: "draft",
       questions: [],
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      assignedGroups: [],
     })
     setIsDialogOpen(true)
   }
 
-  const handleEditSurvey = (survey: Survey) => {
-    setCurrentSurvey(survey)
-    setNewSurvey({ ...survey })
+  const handleEditTemplate = (template: SurveyTemplate) => {
+    setCurrentTemplate(template)
+    setNewTemplate({ ...template })
     setIsDialogOpen(true)
   }
 
-  const handleDeleteSurvey = async (id: string) => {
+  const handleDeleteTemplate = async (id: string) => {
     try {
-      const response = await fetch(`/api/surveys/${id}`, { method: "DELETE" })
-      if (!response.ok) throw new Error("Failed to delete survey")
-      setSurveys(surveys.filter((survey) => survey._id !== id))
-      toast({ title: "Success", description: "Survey deleted successfully" })
+      const response = await fetch(`/api/templates/${id}`, { method: "DELETE" })
+      if (!response.ok) throw new Error("Failed to delete survey template")
+      setTemplates(templates.filter((template) => template._id !== id))
+      toast({ title: "Success", description: "Survey template deleted successfully", variant: 'success' })
     } catch (error) {
-      console.error("Error deleting survey:", error)
-      toast({ title: "Error", description: "Failed to delete survey", variant: "destructive" })
+      console.error("Error deleting survey template:", error)
+      toast({ title: "Error", description: "Failed to delete survey template", variant: "destructive" })
     } finally {
       setIsDeleteDialogOpen(false)
-      setSurveyToDelete(null)
+      setTemplateToDelete(null)
     }
   }
 
-  const handleSaveSurvey = async () => {
+  const handleSaveTemplate = async () => {
     try {
-      const surveyData = { ...newSurvey, updatedAt: new Date().toISOString() }
-      const url = currentSurvey ? `/api/surveys/${currentSurvey._id}` : "/api/surveys"
-      const method = currentSurvey ? "PUT" : "POST"
+      const templateData = { ...newTemplate, createdAt: new Date().toISOString() }
+      const url = currentTemplate ? `/api/templates/${currentTemplate._id}` : "/api/templates"
+      const method = currentTemplate ? "PUT" : "POST"
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(surveyData),
+        body: JSON.stringify(templateData),
       })
 
-      if (!response.ok) throw new Error("Failed to save survey")
+      if (!response.ok) throw new Error("Failed to save survey template")
 
-      const savedSurvey = await response.json()
-      if (currentSurvey) {
-        setSurveys(surveys.map((survey) => (survey._id === savedSurvey._id ? savedSurvey : survey)))
+      const savedTemplate = await response.json()
+      if (currentTemplate) {
+        setTemplates(templates.map((template) => (template._id === savedTemplate._id ? savedTemplate : template)))
       } else {
-        setSurveys([...surveys, savedSurvey])
+        setTemplates([...templates, savedTemplate])
       }
 
       setIsDialogOpen(false)
-      toast({ title: "Success", description: `Survey ${currentSurvey ? "updated" : "created"} successfully` })
+      toast({ title: "Success", description: `Survey template ${currentTemplate ? "updated" : "created"} successfully`, variant: "success" })
     } catch (error) {
-      console.error("Error saving survey:", error)
-      toast({ title: "Error", description: "Failed to save survey", variant: "destructive" })
+      console.error("Error saving survey template:", error)
+      toast({ title: "Error", description: "Failed to save survey template", variant: "destructive" })
     }
   }
 
-  const handleAssignGroups = async (surveyId: string, groupIds: string[]) => {
+  const handleUseTemplate = async (template: SurveyTemplate) => {
     try {
-      const response = await fetch(`/api/surveys/${surveyId}/assign`, {
+      const response = await fetch("/api/surveys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groupIds }),
+        body: JSON.stringify({
+          title: `${template.title} - ${new Date().toLocaleDateString()}`,
+          description: template.description,
+          creatorId: session?.user.id,
+          status: "draft",
+          questions: template.questions,
+          assignedGroups: [],
+          theme: "default",
+        }),
       })
 
-      if (!response.ok) throw new Error("Failed to assign groups to survey")
+      if (!response.ok) throw new Error("Failed to create survey from template")
 
-      const updatedSurvey = await response.json()
-      setSurveys(surveys.map((survey) => (survey._id === updatedSurvey._id ? updatedSurvey : survey)))
-      setIsAssignGroupsDialogOpen(false)
-      toast({ title: "Success", description: "Groups assigned to survey successfully" })
+      const newSurvey = await response.json()
+      toast({ title: "Success", description: `New survey created from template: ${template.title}`, variant: "success" })
+      router.push(`/admin/survey-mangement`)
     } catch (error) {
-      console.error("Error assigning groups to survey:", error)
-      toast({ title: "Error", description: "Failed to assign groups to survey", variant: "destructive" })
+      console.error("Error creating survey from template:", error)
+      toast({ title: "Error", description: "Failed to create survey from template", variant: "destructive" })
     }
   }
 
-  const toggleExpandSurvey = (surveyId: string) => {
-    setExpandedSurveys((prev) => {
+  const toggleExpandTemplate = (templateId: string) => {
+    setExpandedTemplates((prev) => {
       const newSet = new Set(prev)
-      if (newSet.has(surveyId)) {
-        newSet.delete(surveyId)
+      if (newSet.has(templateId)) {
+        newSet.delete(templateId)
       } else {
-        newSet.add(surveyId)
+        newSet.add(templateId)
       }
       return newSet
     })
@@ -209,29 +177,29 @@ export default function SurveyManagement() {
       text: "",
       required: false,
     }
-    setNewSurvey({ ...newSurvey, questions: [...newSurvey.questions, newQuestion] })
+    setNewTemplate({ ...newTemplate, questions: [...newTemplate.questions, newQuestion] })
   }
 
   const handleUpdateQuestion = (questionId: string, updates: Partial<Question>) => {
-    setNewSurvey({
-      ...newSurvey,
-      questions: newSurvey.questions.map((q) =>
+    setNewTemplate({
+      ...newTemplate,
+      questions: newTemplate.questions.map((q) =>
         q.id === questionId ? { ...q, ...updates } : q
       ),
     })
   }
 
   const handleRemoveQuestion = (questionId: string) => {
-    setNewSurvey({
-      ...newSurvey,
-      questions: newSurvey.questions.filter((q) => q.id !== questionId),
+    setNewTemplate({
+      ...newTemplate,
+      questions: newTemplate.questions.filter((q) => q.id !== questionId),
     })
   }
 
   const handleAddOption = (questionId: string) => {
-    setNewSurvey({
-      ...newSurvey,
-      questions: newSurvey.questions.map((q) =>
+    setNewTemplate({
+      ...newTemplate,
+      questions: newTemplate.questions.map((q) =>
         q.id === questionId
           ? { ...q, options: [...(q.options || []), `Option ${(q.options?.length || 0) + 1}`] }
           : q
@@ -240,9 +208,9 @@ export default function SurveyManagement() {
   }
 
   const handleUpdateOption = (questionId: string, optionIndex: number, newValue: string) => {
-    setNewSurvey({
-      ...newSurvey,
-      questions: newSurvey.questions.map((q) =>
+    setNewTemplate({
+      ...newTemplate,
+      questions: newTemplate.questions.map((q) =>
         q.id === questionId
           ? {
             ...q,
@@ -256,9 +224,9 @@ export default function SurveyManagement() {
   }
 
   const handleRemoveOption = (questionId: string, optionIndex: number) => {
-    setNewSurvey({
-      ...newSurvey,
-      questions: newSurvey.questions.map((q) =>
+    setNewTemplate({
+      ...newTemplate,
+      questions: newTemplate.questions.map((q) =>
         q.id === questionId
           ? { ...q, options: (q.options || []).filter((_, index) => index !== optionIndex) }
           : q
@@ -268,38 +236,29 @@ export default function SurveyManagement() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Survey Management</h1>
-          <p className="text-muted-foreground">Create and manage your surveys</p>
+      <div className="grid place-items-center lg:grid-cols-2 sm:grid-cols-1 max-sm:grid-cols-1 max-lg:grid-cols-2 gap-6">
+        <div className="w-full">
+          <h1 className="text-3xl font-bold">Survey Template Management</h1>
+          <p className="text-muted-foreground">Create and manage your survey templates</p>
         </div>
-        <Button onClick={handleCreateSurvey}>
-          <Plus className="mr-2 h-4 w-4" /> Create Survey
+        <Button onClick={handleCreateTemplate} className="w-full">
+          <Plus className="mr-2 h-4 w-full" /> Create Template
         </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {surveys.map((survey) => (
-          <Card key={survey._id} className="flex flex-col">
+        {templates.map((template) => (
+          <Card key={template._id} className="flex flex-col w-fit">
             <CardHeader>
-              <CardTitle>{survey.title}</CardTitle>
-              <CardDescription>{survey.description}</CardDescription>
+              <CardTitle>{template.title}</CardTitle>
+              <CardDescription>{template.description}</CardDescription>
             </CardHeader>
             <CardContent className="flex-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                <span className={`px-2 py-1 rounded-full ${survey.status === 'active' ? 'bg-green-100 text-green-800' :
-                  survey.status === 'closed' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                  }`}>
-                  {survey.status.charAt(0).toUpperCase() + survey.status.slice(1)}
-                </span>
-                <span>•</span>
-                <span>{survey.questions.length} questions</span>
-                <span>•</span>
-                <span>{survey.assignedGroups.length} groups</span>
+                <span>{template.questions.length} questions</span>
               </div>
-              <Button variant="ghost" className="w-full justify-start" onClick={() => toggleExpandSurvey(survey._id!)}>
-                {expandedSurveys.has(survey._id!) ? (
+              <Button variant="ghost" className="w-full justify-start" onClick={() => toggleExpandTemplate(template._id!)}>
+                {expandedTemplates.has(template._id!) ? (
                   <>
                     <ChevronUp className="mr-2 h-4 w-4" /> Hide Details
                   </>
@@ -309,57 +268,43 @@ export default function SurveyManagement() {
                   </>
                 )}
               </Button>
-              {expandedSurveys.has(survey._id!) && (
+              {expandedTemplates.has(template._id!) && (
                 <div className="mt-2 space-y-2 text-sm">
-                  <p>Created: {new Date(survey.createdAt).toLocaleDateString()}</p>
-                  <p>Updated: {new Date(survey.updatedAt).toLocaleDateString()}</p>
-                  <p>Theme: {survey.theme || 'Default'}</p>
+                  <p>Created: {new Date(template.createdAt).toLocaleDateString()}</p>
                   <div>
                     <p className="font-semibold">Questions:</p>
                     <ul className="list-disc list-inside">
-                      {survey.questions.map((question) => (
+                      {template.questions.map((question) => (
                         <li key={question.id}>{question.text}</li>
                       ))}
-                    </ul>
-                  </div>
-                  <div>
-                    <p className="font-semibold">Assigned Groups:</p>
-                    <ul className="list-disc list-inside">
-                      {survey.assignedGroups.map((groupId) => {
-                        const group = groups.find(g => g._id === groupId)
-                        return <li key={groupId}>{group ? group.name : 'Unknown Group'}</li>
-                      })}
                     </ul>
                   </div>
                 </div>
               )}
             </CardContent>
-            <CardFooter className="flex justify-between border-t pt-4">
-              <Button variant="outline" size="sm" onClick={() => handleEditSurvey(survey)}>
+            <CardFooter className="flex justify-between border-t pt-4 gap-4">
+              <Button variant="outline" size="sm" onClick={() => handleEditTemplate(template)}>
                 <Edit className="mr-2 h-4 w-4" /> Edit
               </Button>
-              <Button variant="outline" size="sm" onClick={() => {
-                setCurrentSurvey(survey)
-                setIsAssignGroupsDialogOpen(true)
-              }}>
-                <Users className="mr-2 h-4 w-4" /> Assign Groups
+              <Button variant="outline" size="sm" onClick={() => handleUseTemplate(template)}>
+                <Copy className="mr-2 h-4 w-4" /> Use Template
               </Button>
               <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" onClick={() => setSurveyToDelete(survey._id!)} className="text-destructive hover:text-destructive">
+                  <Button variant="outline" size="sm" onClick={() => setTemplateToDelete(template._id!)} className="text-destructive hover:text-destructive">
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Are you sure you want to delete this survey?</DialogTitle>
+                    <DialogTitle>Are you sure you want to delete this template?</DialogTitle>
                     <DialogDescription>
-                      This action cannot be undone. This will permanently delete the survey and all its data.
+                      This action cannot be undone. This will permanently delete the survey template.
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>Cancel</Button>
-                    <Button variant="destructive" onClick={() => surveyToDelete && handleDeleteSurvey(surveyToDelete)}>Delete</Button>
+                    <Button variant="destructive" onClick={() => templateToDelete && handleDeleteTemplate(templateToDelete)}>Delete</Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -371,54 +316,34 @@ export default function SurveyManagement() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{currentSurvey ? "Edit Survey" : "Create New Survey"}</DialogTitle>
+            <DialogTitle>{currentTemplate ? "Edit Template" : "Create New Template"}</DialogTitle>
             <DialogDescription>
-              {currentSurvey ? "Edit the details and questions of your survey." : "Create a new survey with questions."}
+              {currentTemplate ? "Edit the details and questions of your survey template." : "Create a new survey template with questions."}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="surveyTitle">Survey Title</Label>
-                <Input
-                  id="surveyTitle"
-                  value={newSurvey.title}
-                  onChange={(e) => setNewSurvey({ ...newSurvey, title: e.target.value })}
-                  placeholder="Enter survey title"
-                  className="mt-1.5"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="surveyStatus">Status</Label>
-                <Select
-                  value={newSurvey.status}
-                  onValueChange={(value) => setNewSurvey({ ...newSurvey, status: value as 'draft' | 'active' | 'closed' })}>
-                  <SelectTrigger className="w-full mt-1.5">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((status) => (
-                      <SelectItem key={status.id} value={status.id}>
-                        {status.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div>
+              <Label htmlFor="templateTitle">Template Title</Label>
+              <Input
+                id="templateTitle"
+                value={newTemplate.title}
+                onChange={(e) => setNewTemplate({ ...newTemplate, title: e.target.value })}
+                placeholder="Enter template title"
+                className="mt-1.5"
+              />
             </div>
 
             <div>
-              <Label htmlFor="surveyDescription">Description</Label>
+              <Label htmlFor="templateDescription">Description</Label>
               <Textarea
-                id="surveyDescription"
-                value={newSurvey.description}
-                onChange={(e) => setNewSurvey({
-                  ...newSurvey,
+                id="templateDescription"
+                value={newTemplate.description}
+                onChange={(e) => setNewTemplate({
+                  ...newTemplate,
                   description: e.target.value
                 })}
-                placeholder="Enter survey description"
+                placeholder="Enter template description"
                 className="mt-1.5"
               />
             </div>
@@ -432,7 +357,7 @@ export default function SurveyManagement() {
               </div>
 
               <div className="space-y-4">
-                {newSurvey.questions.map((question, index) => (
+                {newTemplate.questions.map((question, index) => (
                   <Card key={question.id}>
                     <CardHeader>
                       <div className="flex items-center justify-between">
@@ -544,46 +469,8 @@ export default function SurveyManagement() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleSaveSurvey}>
-              <Save className="mr-2 h-4 w-4" /> Save Survey
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAssignGroupsDialogOpen} onOpenChange={setIsAssignGroupsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Groups to Survey</DialogTitle>
-            <DialogDescription>
-              Select the groups you want to assign to this survey.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {groups.map((group) => (
-              <div key={group._id} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id={`group-${group._id}`}
-                  checked={currentSurvey?.assignedGroups.includes(group._id)}
-                  onChange={(e) => {
-                    if (currentSurvey) {
-                      const updatedGroups = e.target.checked
-                        ? [...currentSurvey.assignedGroups, group._id]
-                        : currentSurvey.assignedGroups.filter(id => id !== group._id)
-                      setCurrentSurvey({ ...currentSurvey, assignedGroups: updatedGroups })
-                    }
-                  }}
-                  className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                />
-                <Label htmlFor={`group-${group._id}`}>{group.name}</Label>
-              </div>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsAssignGroupsDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => currentSurvey && handleAssignGroups(currentSurvey._id!, currentSurvey.assignedGroups)}>
-              Save Assignments
+            <Button onClick={handleSaveTemplate}>
+              <Save className="mr-2 h-4 w-4" /> Save Template
             </Button>
           </DialogFooter>
         </DialogContent>

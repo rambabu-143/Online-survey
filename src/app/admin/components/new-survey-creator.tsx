@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,24 +19,51 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/componen
 import { GripVertical, Plus, X, Save, LayoutTemplate } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
 
 interface Question {
   id: string
+  type: "multiple-choice" | "text-input" | "rating-scale"
   text: string
-  type: "text-input" | "multiple-choice" | "rating-scale"
   options?: string[]
   required: boolean
   min?: number
   max?: number
 }
 
+interface ISurvey {
+  title: string
+  description?: string
+  creatorId: string
+  status: "draft" | "active" | "closed"
+  questions: Question[]
+  assignedGroups: string[] // Assuming we're using string IDs for simplicity
+  theme?: string
+}
+
 export default function SurveyBuilder() {
-  const [surveyTitle, setSurveyTitle] = useState("")
-  const [surveyDescription, setSurveyDescription] = useState("")
-  const [questions, setQuestions] = useState<Question[]>([])
+  const { data: session, status } = useSession()
+  const [survey, setSurvey] = useState<ISurvey>({
+    title: "",
+    description: "",
+    creatorId: "",
+    status: "draft",
+    questions: [],
+    assignedGroups: [],
+    theme: ""
+  })
   const [activeTab, setActiveTab] = useState("builder")
   const { toast } = useToast()
   const router = useRouter()
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user?.id) {
+      setSurvey(prevSurvey => ({
+        ...prevSurvey,
+        creatorId: session.user.id as string
+      }))
+    }
+  }, [status, session])
 
   const addQuestion = (type: "text-input" | "multiple-choice" | "rating-scale") => {
     const newQuestion: Question = {
@@ -47,25 +74,36 @@ export default function SurveyBuilder() {
       required: false,
       ...(type === "rating-scale" && { min: 1, max: 5 }),
     }
-    setQuestions([...questions, newQuestion])
+    setSurvey({ ...survey, questions: [...survey.questions, newQuestion] })
   }
 
   const updateQuestion = (id: string, updates: Partial<Question>) => {
-    setQuestions(questions.map((q) => (q.id === id ? { ...q, ...updates } : q)))
+    setSurvey({
+      ...survey,
+      questions: survey.questions.map((q) => (q.id === id ? { ...q, ...updates } : q))
+    })
   }
 
   const removeQuestion = (id: string) => {
-    setQuestions(questions.filter((q) => q.id !== id))
+    setSurvey({
+      ...survey,
+      questions: survey.questions.filter((q) => q.id !== id)
+    })
   }
 
   const handlePublish = async () => {
-    if (!surveyTitle.trim()) {
+    if (!survey.title.trim()) {
       toast({ title: "Error", description: "Please enter a survey title", variant: "destructive" })
       return
     }
 
-    if (questions.length === 0) {
+    if (survey.questions.length === 0) {
       toast({ title: "Error", description: "Please add at least one question", variant: "destructive" })
+      return
+    }
+
+    if (!survey.creatorId) {
+      toast({ title: "Error", description: "User not authenticated", variant: "destructive" })
       return
     }
 
@@ -74,39 +112,34 @@ export default function SurveyBuilder() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: surveyTitle,
-          description: surveyDescription,
-          status: "draft",
-          questions: questions.map(({ id, text, type, options, required, min, max }) => ({
-            id,
-            text,
-            type,
-            options,
-            required,
-            min,
-            max,
-          })),
+          ...survey,
+          status: "active" // Change status to active when publishing
         }),
       })
 
       if (!response.ok) throw new Error("Failed to create survey")
 
-      const survey = await response.json()
-      toast({ title: "Success", description: "Survey created successfully!" })
+      const createdSurvey = await response.json()
+      toast({ title: "Success", description: "Survey published successfully!", variant: "success" })
       router.push("/admin/survey-management")
     } catch (error) {
       console.error("Error creating survey:", error)
       toast({
         title: "Error",
-        description: "Failed to create survey. Please try again.",
+        description: "Failed to publish survey. Please try again.",
         variant: "destructive",
       })
     }
   }
 
   const handleSaveAsTemplate = async () => {
-    if (!surveyTitle.trim()) {
+    if (!survey.title.trim()) {
       toast({ title: "Error", description: "Please enter a survey title", variant: "destructive" })
+      return
+    }
+
+    if (!survey.creatorId) {
+      toast({ title: "Error", description: "User not authenticated", variant: "destructive" })
       return
     }
 
@@ -114,25 +147,13 @@ export default function SurveyBuilder() {
       const response = await fetch("/api/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: surveyTitle,
-          description: surveyDescription,
-          questions: questions.map(({ id, text, type, options, required, min, max }) => ({
-            id,
-            text,
-            type,
-            options,
-            required,
-            min,
-            max,
-          })),
-        }),
+        body: JSON.stringify(survey),
       })
 
       if (!response.ok) throw new Error("Failed to save template")
 
       const template = await response.json()
-      toast({ title: "Success", description: "Survey saved as template successfully!" })
+      toast({ title: "Success", description: "Survey saved as template successfully!", variant: "success" })
     } catch (error) {
       console.error("Error saving template:", error)
       toast({
@@ -154,7 +175,7 @@ export default function SurveyBuilder() {
       <Card className="mb-4 border-2 border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200">
         <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
           <GripVertical className="mr-2 cursor-move text-gray-400 hidden sm:block" />
-          <CardTitle className="flex-grow w-full sm:w-auto">
+          <CardTitle className="flex-grow w-full sm:w-auto ">
             <Input
               value={question.text}
               onChange={(e) => updateQuestion(question.id, { text: e.target.value })}
@@ -257,9 +278,9 @@ export default function SurveyBuilder() {
 
   const renderPreview = () => (
     <div className="space-y-4 bg-gray-50 p-6 rounded-lg shadow-inner">
-      <h2 className="text-3xl font-bold text-gray-800">{surveyTitle || "Untitled Survey"}</h2>
-      {surveyDescription && <p className="text-gray-600 mt-2">{surveyDescription}</p>}
-      {questions.map((question) => (
+      <h2 className="text-3xl font-bold text-gray-800">{survey.title || "Untitled Survey"}</h2>
+      {survey.description && <p className="text-gray-600 mt-2">{survey.description}</p>}
+      {survey.questions.map((question) => (
         <Card key={question.id} className="mb-4 bg-white">
           <CardContent className="pt-6">
             <p className="font-semibold text-lg mb-2">{question.text || "Untitled Question"}</p>
@@ -299,18 +320,26 @@ export default function SurveyBuilder() {
     </div>
   )
 
+  if (status === "loading") {
+    return <div>Loading...</div>
+  }
+
+  if (status === "unauthenticated") {
+    return <div>Please sign in to create a survey.</div>
+  }
+
   return (
     <div className="container mx-auto p-4 space-y-6 max-w-4xl">
       <div className="space-y-4">
         <Input
-          value={surveyTitle}
-          onChange={(e) => setSurveyTitle(e.target.value)}
+          value={survey.title}
+          onChange={(e) => setSurvey({ ...survey, title: e.target.value })}
           placeholder="Enter survey title"
           className="text-3xl font-bold"
         />
         <Textarea
-          value={surveyDescription}
-          onChange={(e) => setSurveyDescription(e.target.value)}
+          value={survey.description}
+          onChange={(e) => setSurvey({ ...survey, description: e.target.value })}
           placeholder="Enter survey description (optional)"
           className="text-lg"
         />
@@ -323,7 +352,7 @@ export default function SurveyBuilder() {
         </TabsList>
         <TabsContent value="builder">
           <div className="space-y-4">
-            {questions.map(renderQuestion)}
+            {survey.questions.map(renderQuestion)}
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => addQuestion("text-input")} variant="outline">
                 <Plus className="mr-2 h-4 w-4" />

@@ -37,3 +37,13 @@ export async function PATCH(req: Request) {
         return NextResponse.json({ error: 'Failed to update user role' }, { status: 500 });
     }
 }
+export async function POST(request: Request) {
+    await dbConnect()
+    const { username, email, password } = await request.json()
+
+    const newUser = new User({ username, email, password })
+    await newUser.save()
+
+    const { password: _, ...userWithoutPassword } = newUser.toObject()
+    return NextResponse.json(userWithoutPassword, { status: 201 })
+}

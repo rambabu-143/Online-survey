@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { UserPlus, Users, ClipboardList } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
 
 interface User {
   _id: string;
@@ -106,6 +107,19 @@ async function assignSurveyToGroups(surveyId: string, groupIds: string[]) {
   }
 }
 
+async function addUser(username: string, email: string, password: string): Promise<User> {
+  const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, email, password }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to add user');
+  }
+  return response.json();
+}
+
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
   const [groups, setGroups] = useState<UserGroup[]>([]);
@@ -115,6 +129,11 @@ export default function UserManagement() {
   const [newGroupDescription, setNewGroupDescription] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string>('');
   const [selectedSurvey, setSelectedSurvey] = useState<string>('');
+  const [isAddUserDialogOpen, setIsAddUserDialogOpen] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadData = async () => {
@@ -129,11 +148,16 @@ export default function UserManagement() {
         setSurveys(surveysData);
       } catch (error) {
         console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to load data",
+          variant: "destructive",
+        });
       }
     };
 
     loadData();
-  }, []);
+  }, [toast]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUsers((prevSelectedUsers) =>
@@ -149,8 +173,18 @@ export default function UserManagement() {
       setUsers((prevUsers) =>
         prevUsers.map((user) => (user._id === userId ? { ...user, role: newRole } : user))
       );
+      toast({
+        title: "Success",
+        description: "User role updated successfully",
+        variant: "success",
+      });
     } catch (error) {
       console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to update user role",
+        variant: "destructive",
+      });
     }
   };
 
@@ -160,8 +194,18 @@ export default function UserManagement() {
       setGroups([...groups, newGroup]);
       setNewGroupName('');
       setNewGroupDescription('');
+      toast({
+        title: "Success",
+        description: "Group created successfully",
+        variant: "success",
+      });
     } catch (error) {
       console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to create group",
+        variant: "destructive",
+      });
     }
   };
 
@@ -174,8 +218,18 @@ export default function UserManagement() {
         setUsers(updatedUsers);
         setGroups(updatedGroups);
         setSelectedUsers([]);
+        toast({
+          title: "Success",
+          description: "Users assigned to group successfully",
+          variant: "success",
+        });
       } catch (error) {
         console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to assign users to group",
+          variant: "destructive",
+        });
       }
     }
   };
@@ -188,9 +242,42 @@ export default function UserManagement() {
         const [updatedSurveys, updatedGroups] = await Promise.all([fetchSurveys(), fetchGroups()]);
         setSurveys(updatedSurveys);
         setGroups(updatedGroups);
+        toast({
+          title: "Success",
+          description: "Survey assigned to group successfully",
+          variant: "success",
+        });
       } catch (error) {
         console.error(error);
+        toast({
+          title: "Error",
+          description: "Failed to assign survey to group",
+          variant: "destructive",
+        });
       }
+    }
+  };
+
+  const handleAddUser = async () => {
+    try {
+      const newUser = await addUser(newUsername, newEmail, newPassword);
+      setUsers([...users, newUser]);
+      setIsAddUserDialogOpen(false);
+      setNewUsername('');
+      setNewEmail('');
+      setNewPassword('');
+      toast({
+        title: "Success",
+        description: "User added successfully",
+        variant: "success",
+      });
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to add user",
+        variant: "destructive",
+      });
     }
   };
 
@@ -198,9 +285,38 @@ export default function UserManagement() {
     <div className="container mx-auto p-4 space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">User Management</h1>
-        <Button onClick={() => console.log('Open add user dialog')}>
-          <UserPlus className="mr-2 h-4 w-4" /> Add User
-        </Button>
+        <Dialog open={isAddUserDialogOpen} onOpenChange={setIsAddUserDialogOpen}>
+          <DialogTrigger asChild>
+            <Button>
+              <UserPlus className="mr-2 h-4 w-4" /> Add User
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New User</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <Input
+                placeholder="Username"
+                value={newUsername}
+                onChange={(e) => setNewUsername(e.target.value)}
+              />
+              <Input
+                placeholder="Email"
+                type="email"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <Input
+                placeholder="Password"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <Button onClick={handleAddUser}>Add User</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <Table>

@@ -22,7 +22,7 @@ export default function SignupPage() {
             })
 
             if (response.ok) {
-                router.push('/sigin')
+                router.push('/signin')
             } else {
                 const data = await response.json()
                 setError(data.message || 'An error occurred. Please try again.')

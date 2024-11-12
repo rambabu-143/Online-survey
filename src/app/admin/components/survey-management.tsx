@@ -106,7 +106,7 @@ export default function SurveyManagement() {
       const response = await fetch(`/api/surveys/${id}`, { method: "DELETE" })
       if (!response.ok) throw new Error("Failed to delete survey")
       setSurveys(surveys.filter((survey) => survey._id !== id))
-      toast({ title: "Success", description: "Survey deleted successfully" })
+      toast({ title: "Success", description: "Survey deleted successfully", variant: 'success' })
     } catch (error) {
       console.error("Error deleting survey:", error)
       toast({ title: "Error", description: "Failed to delete survey", variant: "destructive" })
@@ -243,8 +243,8 @@ export default function SurveyManagement() {
             <CardContent className="flex-1">
               <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <span className={`px-2 py-1 rounded-full ${survey.status === 'active' ? 'bg-green-100 text-green-800' :
-                    survey.status === 'closed' ? 'bg-red-100 text-red-800' :
-                      'bg-yellow-100 text-yellow-800'
+                  survey.status === 'closed' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
                   }`}>
                   {survey.status.charAt(0).toUpperCase() + survey.status.slice(1)}
                 </span>
