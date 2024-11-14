@@ -14,5 +14,5 @@ const responseSchema = new Schema<IResponse>({
     submittedAt: { type: Date, default: Date.now }
 });
 
-const Response = mongoose.models.Response || mongoose.model('Respnse', responseSchema);
+const Response = mongoose.models.Response || mongoose.model('Response', responseSchema);
 export default Response;

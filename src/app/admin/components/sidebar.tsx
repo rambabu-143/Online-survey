@@ -2,17 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BarChart2, FileText, Layout, Settings, Users, PieChart, PlusCircle } from 'lucide-react'
-
-import {
-    Sidebar,
-    SidebarContent,
-    SidebarFooter,
-    SidebarHeader,
-    SidebarMenu,
-    SidebarMenuItem,
-    SidebarMenuButton,
-} from '@/components/ui/sidebar'
+import { BarChart2, FileText, Layout, Users, PieChart, PlusCircle, User } from 'lucide-react'
+import { useSession, signOut } from 'next-auth/react'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar'
 
 const navItems = [
     { name: 'Dashboard', href: '/admin', icon: Layout },
@@ -20,14 +14,13 @@ const navItems = [
     { name: 'Template Management', href: '/admin/survey-templates', icon: FileText },
     { name: 'Survey Analytics', href: '/analytics', icon: PieChart },
     { name: 'User Management', href: '/admin/users-mangement', icon: Users },
-    { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export default function SidebarNav() {
     const pathname = usePathname()
+    const { data: session } = useSession()
 
     return (
-
         <Sidebar>
             <SidebarHeader>
                 <SidebarMenu>
@@ -65,9 +58,36 @@ export default function SidebarNav() {
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        {/* Dropdown for Settings */}
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="flex items-center">
+                                    <User className="w-4 h-4 mr-2" />
+                                    {session ? session.user.name : 'Settings'}
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                {session ? (
+                                    <>
+                                        <DropdownMenuItem className="text-sm">
+                                            <p className="font-medium">{session.user.name}</p>
+                                            <p className="text-xs text-muted-foreground">{session.user.email}</p>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => signOut()}>
+                                            Sign Out
+                                        </DropdownMenuItem>
+                                    </>
+                                ) : (
+                                    <DropdownMenuItem asChild>
+                                        <Link href="/signin">Sign In</Link>
+                                    </DropdownMenuItem>
+                                )}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                    </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarFooter>
         </Sidebar>
-
     )
 }

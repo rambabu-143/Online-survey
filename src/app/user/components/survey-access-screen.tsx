@@ -5,9 +5,30 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Clock, ArrowRight, Loader2 } from "lucide-react"
+import { Clock, ArrowRight, Loader2, CheckCircle, X } from 'lucide-react'
 import Link from 'next/link'
-import { useToast } from '@/hooks/use-toast'
+import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { redirect } from 'next/navigation'
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import SignOutButton from './signout'
+import { useSession } from 'next-auth/react'
 
 type Survey = {
   _id: string;
@@ -19,26 +40,65 @@ type Survey = {
   groupName: string;
 }
 
+type Response = {
+  _id: string;
+  surveyId: string;
+  userId: string;
+  submittedAt: string;
+  answers: { [key: string]: string };
+}
+
+type Question = {
+  _id: string;
+  text: string;
+  type: 'text' | 'textarea';
+}
+
 export default function SurveyAccess() {
   const [surveys, setSurveys] = useState<Survey[]>([])
+  const [responses, setResponses] = useState<Response[]>([])
+  const [questions, setQuestions] = useState<{ [key: string]: Question[] }>({})
   const [isLoading, setIsLoading] = useState(true)
   const { toast } = useToast()
+  const { data: session } = useSession();
+  const surveyLink = session ? "/user/survey-access" : "/signin";
+  if (session?.user.role === 'admin') {
+    redirect('/admin');
+  }
 
   useEffect(() => {
-    const fetchAssignedSurveys = async () => {
+    const fetchData = async () => {
       try {
         setIsLoading(true)
-        const response = await fetch('/api/users/assigned-surveys')
-        if (!response.ok) {
-          throw new Error('Failed to fetch assigned surveys')
+        const [surveysResponse, responsesResponse] = await Promise.all([
+          fetch('/api/users/assigned-surveys'),
+          fetch('/api/responses')
+        ])
+
+        if (!surveysResponse.ok || !responsesResponse.ok) {
+          throw new Error('Failed to fetch data')
         }
-        const data = await response.json()
-        setSurveys(data)
+
+        const surveysData = await surveysResponse.json()
+        const responsesData = await responsesResponse.json()
+
+        setSurveys(surveysData)
+        setResponses(responsesData)
+
+        // Fetch questions for each survey
+        const questionsData: { [key: string]: Question[] } = {}
+        for (const survey of surveysData) {
+          const questionsResponse = await fetch(`/api/surveys/${survey._id}/questions`)
+          if (questionsResponse.ok) {
+            questionsData[survey._id] = await questionsResponse.json()
+          }
+        }
+        setQuestions(questionsData)
       } catch (error) {
-        console.error('Error fetching assigned surveys:', error)
+        console.error('Error fetching data:', error)
         toast({
           title: "Error",
-          description: "Failed to load assigned surveys. Please try again later.",
+          description: "Failed to load data. Please try again later.",
           variant: "destructive",
         })
       } finally {
@@ -46,63 +106,166 @@ export default function SurveyAccess() {
       }
     }
 
-    fetchAssignedSurveys()
+    fetchData()
   }, [toast])
 
+  const getUserResponse = (surveyId: string) => {
+    return responses.find(response => response.surveyId === surveyId)
+  }
+
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle className="text-2xl">Your Assigned Surveys</CardTitle>
-        <CardDescription>View and complete surveys assigned to your groups</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {isLoading ? (
-          <div className="flex justify-center items-center h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        ) : (
-          <ScrollArea className="h-[400px] pr-4">
-            {surveys.length > 0 ? (
-              surveys.map((survey) => (
-                <Card key={survey._id} className="mb-4">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{survey.title}</CardTitle>
-                      <Badge variant={survey.status === 'active' ? "default" : "secondary"}>
-                        <Clock className="w-4 h-4 mr-1" />
-                        {survey.status.charAt(0).toUpperCase() + survey.status.slice(1)}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {survey.description && (
-                      <p className="text-sm text-muted-foreground mb-2">{survey.description}</p>
-                    )}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Group: {survey.groupName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Last updated: {new Date(survey.updatedAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <Button asChild variant="outline" className="mt-2" disabled={survey.status !== 'active'}>
-                        <Link href={`/user/surveys/${survey._id}`}>
-                          Take Survey
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </Link>
+    <>
+      <header className="bg-white shadow-sm">
+        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-blue-600">SurveyInsight</h1>
+          <nav>
+            <ul className="flex space-x-4 items-center">
+              <li><Link href="/user/about" className="text-gray-600 hover:text-blue-600">About</Link></li>
+              <li><Link href={surveyLink} className="text-gray-600 hover:text-blue-600">Surveys</Link></li>
+              {/* <li><Link href="/contact" className="text-gray-600 hover:text-blue-600">Contact</Link></li> */}
+              {session ? (
+                <li>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback>{session?.user.name?.[0]}</AvatarFallback>
+                        </Avatar>
                       </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))
-            ) : (
-              <p className="text-center text-muted-foreground">No assigned surveys available.</p>
-            )}
-          </ScrollArea>
-        )}
-      </CardContent>
-    </Card>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                      <DropdownMenuItem className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                          <p className="text-sm font-medium leading-none">{session?.user.name}</p>
+                          <p className="text-xs leading-none text-muted-foreground">
+                            {session?.user.email}
+                          </p>
+                        </div>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <SignOutButton />
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </li>
+              ) : (
+                <li>
+                  <Link href='/signin' >Sign In</Link>
+                </li>
+              )}
+            </ul>
+          </nav>
+        </div>
+      </header>
+      <Card className="w-full ">
+        <CardHeader>
+          <CardTitle className="text-2xl">Your Assigned Surveys</CardTitle>
+          <CardDescription>View and complete surveys assigned to your groups</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-[400px]">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <ScrollArea className="h-[400px] pr-4">
+              {surveys.length > 0 ? (
+                surveys.map((survey) => {
+                  const userResponse = getUserResponse(survey._id)
+                  return (
+                    <Card key={survey._id} className="mb-4">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{survey.title}</CardTitle>
+                          <Badge variant={userResponse ? "success" : survey.status === 'active' ? "default" : "secondary"}>
+                            {userResponse ? (
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                            ) : (
+                              <Clock className="w-4 h-4 mr-1" />
+                            )}
+                            {userResponse ? 'Submitted' : survey.status.charAt(0).toUpperCase() + survey.status.slice(1)}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        {survey.description && (
+                          <p className="text-sm text-muted-foreground mb-2">{survey.description}</p>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm text-muted-foreground">
+                              Group: {survey.groupName}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Last updated: {new Date(survey.updatedAt).toLocaleDateString()}
+                            </p>
+                          </div>
+                          {userResponse ? (
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <Button variant="outline" className="mt-2">
+                                  View Response
+                                  <ArrowRight className="w-4 h-4 ml-2" />
+                                </Button>
+                              </DialogTrigger>
+                              <DialogContent className="sm:max-w-[425px]">
+                                <DialogHeader>
+                                  <DialogTitle>{survey.title} - Your Response</DialogTitle>
+                                  <DialogDescription>
+                                    Submitted on: {new Date(userResponse.submittedAt).toLocaleString()}
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <div className="grid gap-4 py-4">
+                                  {questions[survey._id]?.map((question) => (
+                                    <div key={question._id} className="grid grid-cols-4 items-center gap-4">
+                                      <Label htmlFor={question._id} className="text-right">
+                                        {question.text}
+                                      </Label>
+                                      {question.type === 'textarea' ? (
+                                        <Textarea
+                                          id={question._id}
+                                          defaultValue={userResponse.answers[question._id]}
+                                          className="col-span-3"
+                                          readOnly
+                                        />
+                                      ) : (
+                                        <Input
+                                          id={question._id}
+                                          defaultValue={userResponse.answers[question._id]}
+                                          className="col-span-3"
+                                          readOnly
+                                        />
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </DialogContent>
+                            </Dialog>
+                          ) : (
+                            <Button
+                              asChild
+                              variant="outline"
+                              className="mt-2"
+                              disabled={survey.status !== 'active'}
+                            >
+                              <Link href={`/user/surveys/${survey._id}`}>
+                                Take Survey
+                                <ArrowRight className="w-4 h-4 ml-2" />
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })
+              ) : (
+                <p className="text-center text-muted-foreground">No assigned surveys available.</p>
+              )}
+            </ScrollArea>
+          )}
+        </CardContent>
+      </Card>
+    </>
   )
 }

@@ -51,11 +51,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         },
         async session({ session, token }) {
 
-            console.log("this is my session ", session)
+
             if (session.user) {
                 session.user.role = token.role as 'admin' | 'user';
                 session.user.id = token.id as string;
             }
+            // console.log("this is my session ", session.user.role)
             return session;
         },
 

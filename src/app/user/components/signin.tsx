@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useEffect, useState } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -11,6 +11,15 @@ export default function SignInPage() {
     const [password, setPassword] = useState('')
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
+    const { data: session } = useSession()
+    useEffect(() => {
+        if (session) {
+            const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
+            router.push(redirectingRoles)
+        }
+    }, [session, router])
+
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -40,7 +49,10 @@ export default function SignInPage() {
                 }
             } else {
 
-                router.push('/')
+                if (session) {
+                    const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
+                    router.push(redirectingRoles)
+                }
             }
         } catch (error) {
             setError('An unexpected error occurred. Please try again.')
