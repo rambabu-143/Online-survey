@@ -1,21 +1,24 @@
-import React from 'react'
+import { headers } from 'next/headers'
 import AdminDashboard from './components/admin-dashboard'
-import { auth } from '../../../auth'
-import { redirect } from 'next/navigation'
 
-const Page = async () => {
-    const session = await auth()
-
-    if (!session || session.user?.name !== 'admin') {
-        redirect('/')
-        return null
-    }
-
-    return (
-        <div>
-            <AdminDashboard />
-        </div>
-    )
+async function getSurveys() {
+    const host = headers().get("host")
+    const protocal = process?.env.NODE_ENV === "development" ? "http" : "https"
+    const res = await fetch(`${protocal}://${host}/api/surveys`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch surveys')
+    return res.json()
 }
 
-export default Page
+async function getResponses() {
+    const host = headers().get("host")
+    const protocal = process?.env.NODE_ENV === "development" ? "http" : "https"
+    const res = await fetch(`${protocal}://${host}/api/responses`, { cache: 'no-store' })
+    if (!res.ok) throw new Error('Failed to fetch responses')
+    return res.json()
+}
+
+export default async function DashboardPage() {
+    const [surveys, responses] = await Promise.all([getSurveys(), getResponses()])
+
+    return <AdminDashboard surveys={surveys} responses={responses} />
+}

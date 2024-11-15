@@ -31,6 +31,7 @@ interface UserGroup {
 interface Survey {
   _id: string;
   title: string;
+  status: string
   assignedGroups: string[];
 }
 
@@ -163,9 +164,11 @@ export default function UserManagement() {
           fetchGroups(),
           fetchSurveys(),
         ]);
+        const activeSurveys = surveysData.filter((survey) => survey?.status === 'active');
+
         setUsers(usersData);
         setGroups(groupsData);
-        setSurveys(surveysData);
+        setSurveys(activeSurveys);
       } catch (error) {
         console.error(error);
         toast({
@@ -439,7 +442,7 @@ export default function UserManagement() {
         </TableBody>
       </Table>
 
-      <div className="flex space-x-4">
+      <div className="grid lg:grid-cols-2 sm:grid-cols-1 gap-4 ">
         <Dialog>
           <DialogTrigger asChild>
             <Button>

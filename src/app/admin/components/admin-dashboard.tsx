@@ -1,33 +1,85 @@
-"use client"
+'use client'
 
-import React from "react"
+import React, { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { CalendarIcon, PlusCircleIcon, UsersIcon } from "lucide-react"
+import { CalendarIcon, PlusCircleIcon, UsersIcon } from 'lucide-react'
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
-const surveyData = [
-  { name: "Jan", total: 12, active: 8 },
-  { name: "Feb", total: 18, active: 12 },
-  { name: "Mar", total: 25, active: 18 },
-  { name: "Apr", total: 31, active: 22 },
-  { name: "May", total: 40, active: 30 },
-  { name: "Jun", total: 48, active: 35 },
-]
+interface Survey {
+  _id: string;
+  title: string;
+  description?: string;
+  creatorId: string;
+  status: 'draft' | 'active' | 'closed';
+  questions: {
+    id: string;
+    type: 'multiple-choice' | 'text-input' | 'rating-scale';
+    text: string;
+    options?: string[];
+    required: boolean;
+    min?: number;
+    max?: number;
+  }[];
+  assignedGroups: string[];
+  createdAt: string;
+  updatedAt: string;
+  theme?: string;
+}
 
-const userActivityData = [
-  { name: "Mon", responses: 120 },
-  { name: "Tue", responses: 150 },
-  { name: "Wed", responses: 180 },
-  { name: "Thu", responses: 200 },
-  { name: "Fri", responses: 160 },
-  { name: "Sat", responses: 100 },
-  { name: "Sun", responses: 80 },
-]
+interface Response {
+  _id: string;
+  surveyId: string;
+  userId?: string;
+  answers?: Map<string, string>;
+  submittedAt: string;
+}
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  surveys: Survey[];
+  responses: Response[];
+}
+
+export default function AdminDashboard({ surveys, responses }: AdminDashboardProps) {
+  const [surveyData, setSurveyData] = useState<{ name: string; total: number; active: number }[]>([])
+  const [responseData, setResponseData] = useState<{ name: string; responses: number }[]>([])
+
+  useEffect(() => {
+    // Process survey data
+    const processedSurveyData = surveys.reduce((acc, survey) => {
+      const month = new Date(survey.createdAt).toLocaleString('default', { month: 'short' })
+      const existingMonth = acc.find(item => item.name === month)
+      if (existingMonth) {
+        existingMonth.total++
+        if (survey.status === 'active') existingMonth.active++
+      } else {
+        acc.push({ name: month, total: 1, active: survey.status === 'active' ? 1 : 0 })
+      }
+      return acc
+    }, [] as { name: string; total: number; active: number }[])
+
+    // Process response data
+    const processedResponseData = responses.reduce((acc, response) => {
+      const day = new Date(response.submittedAt).toLocaleString('default', { weekday: 'short' })
+      const existingDay = acc.find(item => item.name === day)
+      if (existingDay) {
+        existingDay.responses++
+      } else {
+        acc.push({ name: day, responses: 1 })
+      }
+      return acc
+    }, [] as { name: string; responses: number }[])
+
+    setSurveyData(processedSurveyData)
+    setResponseData(processedResponseData)
+  }, [surveys, responses])
+
+  const totalSurveys = surveys.length
+  const activeSurveys = surveys.filter(survey => survey.status === 'active').length
+  const totalResponses = responses.length
+
   return (
     <div className="flex-col md:flex">
       <div className="flex-1 space-y-4 p-8 pt-6">
@@ -53,8 +105,8 @@ export default function AdminDashboard() {
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">48</div>
-                  <p className="text-xs text-muted-foreground">+12% from last month</p>
+                  <div className="text-2xl font-bold">{totalSurveys}</div>
+                  <p className="text-xs text-muted-foreground">Across all statuses</p>
                 </CardContent>
               </Card>
               <Card>
@@ -63,18 +115,18 @@ export default function AdminDashboard() {
                   <CalendarIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">35</div>
-                  <p className="text-xs text-muted-foreground">+5% from last month</p>
+                  <div className="text-2xl font-bold">{activeSurveys}</div>
+                  <p className="text-xs text-muted-foreground">{((activeSurveys / totalSurveys) * 100).toFixed(0)}% of total surveys</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <CardTitle className="text-sm font-medium">Total Responses</CardTitle>
                   <UsersIcon className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">1,234</div>
-                  <p className="text-xs text-muted-foreground">+18% from last month</p>
+                  <div className="text-2xl font-bold">{totalResponses}</div>
+                  <p className="text-xs text-muted-foreground">Across all surveys</p>
                 </CardContent>
               </Card>
             </div>
@@ -101,7 +153,7 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={userActivityData}>
+                    <LineChart data={responseData}>
                       <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
                       <Line type="monotone" dataKey="responses" stroke="#8884d8" strokeWidth={2} dot={false} />
@@ -119,15 +171,12 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={[
-                      { name: "Survey 1", completionRate: 85 },
-                      { name: "Survey 2", completionRate: 72 },
-                      { name: "Survey 3", completionRate: 90 },
-                      { name: "Survey 4", completionRate: 68 },
-                      { name: "Survey 5", completionRate: 95 },
-                    ]}>
+                    <LineChart data={surveys.map(survey => ({
+                      name: survey.title,
+                      completionRate: (responses.filter(r => r.surveyId === survey._id).length / totalResponses) * 100
+                    }))}>
                       <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}%`} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(0)}%`} />
                       <Line type="monotone" dataKey="completionRate" stroke="#8884d8" strokeWidth={2} dot={{ fill: "#8884d8", r: 8 }} />
                     </LineChart>
                   </ResponsiveContainer>
@@ -135,21 +184,19 @@ export default function AdminDashboard() {
               </Card>
               <Card className="col-span-3">
                 <CardHeader>
-                  <CardTitle>User Engagement</CardTitle>
-                  <CardDescription>Average time spent on surveys</CardDescription>
+                  <CardTitle>Survey Distribution</CardTitle>
+                  <CardDescription>By status</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
                     <BarChart data={[
-                      { name: "Survey 1", timeSpent: 5.2 },
-                      { name: "Survey 2", timeSpent: 7.8 },
-                      { name: "Survey 3", timeSpent: 4.3 },
-                      { name: "Survey 4", timeSpent: 6.1 },
-                      { name: "Survey 5", timeSpent: 5.9 },
+                      { name: "Active", count: activeSurveys },
+                      { name: "Draft", count: surveys.filter(s => s.status === 'draft').length },
+                      { name: "Closed", count: surveys.filter(s => s.status === 'closed').length },
                     ]}>
                       <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}m`} />
-                      <Bar dataKey="timeSpent" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
+                      <Bar dataKey="count" fill="#82ca9d" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>

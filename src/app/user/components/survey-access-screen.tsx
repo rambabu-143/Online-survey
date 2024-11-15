@@ -191,7 +191,7 @@ export default function SurveyAccess() {
                         {survey.description && (
                           <p className="text-sm text-muted-foreground mb-2">{survey.description}</p>
                         )}
-                        <div className="flex items-center justify-between">
+                        <div className="grid gap-4 lg:grid-cols-2 sm:grid-cols-1">
                           <div>
                             <p className="text-sm text-muted-foreground">
                               Group: {survey.groupName}
@@ -200,60 +200,65 @@ export default function SurveyAccess() {
                               Last updated: {new Date(survey.updatedAt).toLocaleDateString()}
                             </p>
                           </div>
-                          {userResponse ? (
-                            <Dialog>
-                              <DialogTrigger asChild>
-                                <Button variant="outline" className="mt-2">
-                                  View Response
+                          <div className='flex justify-end items-center'>
+
+
+                            {userResponse ? (
+                              <Dialog >
+                                <DialogTrigger asChild>
+                                  <Button variant="outline" className="mt-2 w-fit">
+                                    View Response
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                  </Button>
+                                </DialogTrigger>
+                                <DialogContent className="w-[90%] flex flex-col rounded-xl">
+                                  <DialogHeader>
+                                    <DialogTitle className=' text-pretty'>{survey.title} - Your Response</DialogTitle>
+                                    <DialogDescription>
+                                      Submitted on: {new Date(userResponse.submittedAt).toLocaleString()}
+                                    </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="grid gap-4 py-4">
+                                    {questions[survey._id]?.map((question) => (
+                                      <div key={question._id} className="grid grid-cols-4 items-center gap-4">
+                                        <Label htmlFor={question._id} className="text-right">
+                                          {question.text}
+                                        </Label>
+                                        {question.type === 'textarea' ? (
+                                          <Textarea
+                                            id={question._id}
+                                            defaultValue={userResponse.answers[question._id]}
+                                            className="col-span-3"
+                                            readOnly
+                                          />
+                                        ) : (
+                                          <Input
+                                            id={question._id}
+                                            defaultValue={userResponse.answers[question._id]}
+                                            className="col-span-3"
+                                            readOnly
+                                          />
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </DialogContent>
+                              </Dialog>
+
+                            ) : (
+                              <Button
+                                asChild
+                                variant="outline"
+                                className="mt-2 w-fit"
+                                disabled={survey.status !== 'active'}
+                              >
+                                <Link href={`/user/surveys/${survey._id}`} className='border-1 border-gray-400'>
+                                  Take Survey
                                   <ArrowRight className="w-4 h-4 ml-2" />
-                                </Button>
-                              </DialogTrigger>
-                              <DialogContent className="sm:max-w-[425px]">
-                                <DialogHeader>
-                                  <DialogTitle>{survey.title} - Your Response</DialogTitle>
-                                  <DialogDescription>
-                                    Submitted on: {new Date(userResponse.submittedAt).toLocaleString()}
-                                  </DialogDescription>
-                                </DialogHeader>
-                                <div className="grid gap-4 py-4">
-                                  {questions[survey._id]?.map((question) => (
-                                    <div key={question._id} className="grid grid-cols-4 items-center gap-4">
-                                      <Label htmlFor={question._id} className="text-right">
-                                        {question.text}
-                                      </Label>
-                                      {question.type === 'textarea' ? (
-                                        <Textarea
-                                          id={question._id}
-                                          defaultValue={userResponse.answers[question._id]}
-                                          className="col-span-3"
-                                          readOnly
-                                        />
-                                      ) : (
-                                        <Input
-                                          id={question._id}
-                                          defaultValue={userResponse.answers[question._id]}
-                                          className="col-span-3"
-                                          readOnly
-                                        />
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              </DialogContent>
-                            </Dialog>
-                          ) : (
-                            <Button
-                              asChild
-                              variant="outline"
-                              className="mt-2"
-                              disabled={survey.status !== 'active'}
-                            >
-                              <Link href={`/user/surveys/${survey._id}`}>
-                                Take Survey
-                                <ArrowRight className="w-4 h-4 ml-2" />
-                              </Link>
-                            </Button>
-                          )}
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
