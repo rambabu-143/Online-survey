@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,6 +49,7 @@ export default function SurveyAnalytics() {
     const [aggregatedResponses, setAggregatedResponses] = useState<AggregatedResponse[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedSurvey, setSelectedSurvey] = useState<string | null>(null);
+    const chartRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         async function fetchData() {
@@ -110,52 +111,98 @@ export default function SurveyAnalytics() {
     };
 
     const exportToPDF = () => {
-        const doc = new jsPDF() as ExtendedJsPDF;
+        const doc = new jsPDF('p', 'pt', 'a4') as ExtendedJsPDF;
         const selectedData = aggregatedResponses.find(r => r.surveyId === selectedSurvey);
         const selectedSurveyData = surveys.find(s => s._id === selectedSurvey);
         const selectedResponses = responses.filter(r => r.surveyId === selectedSurvey);
 
         if (selectedData && selectedSurveyData) {
-            doc.text(`Survey Analytics - ${selectedData.surveyTitle}`, 14, 15);
-            doc.text(`Total Responses: ${selectedData.totalResponses}`, 14, 25);
-            doc.text(`Average Answers per Response: ${selectedData.averageAnswers.toFixed(2)}`, 14, 35);
+            // Add header
+            doc.setFontSize(20);
+            doc.setTextColor(40, 40, 40);
+            doc.text(`Survey Analytics - ${selectedData.surveyTitle}`, 40, 40);
 
-            // Questions and Answers Summary
-            doc.text('Questions and Answers Summary:', 14, 45);
-            let yOffset = 55;
-            selectedSurveyData.questions.forEach((question, index) => {
-                doc.text(`${index + 1}. ${question.text}`, 14, yOffset);
-                yOffset += 10;
-                const answerCount = selectedData.responseDistribution[question.id] || 0;
-                doc.text(`   Answers: ${answerCount}`, 14, yOffset);
-                yOffset += 15;
+            // Add summary information
+            doc.setFontSize(12);
+            doc.setTextColor(80, 80, 80);
+            doc.text(`Total Responses: ${selectedData.totalResponses}`, 40, 70);
+            doc.text(`Average Answers per Response: ${selectedData.averageAnswers.toFixed(2)}`, 40, 90);
+
+            // Add Questions and Answers Summary
+            doc.setFontSize(16);
+            doc.setTextColor(40, 40, 40);
+            doc.text('Questions and Answers Summary', 40, 120);
+
+            const questionData = selectedSurveyData.questions.map((question, index) => [
+                `${index + 1}. ${question.text}`,
+                selectedData.responseDistribution[question.id] || 0
+            ]);
+
+            doc.autoTable({
+                startY: 140,
+                head: [['Question', 'Number of Answers']],
+                body: questionData,
+                styles: { fontSize: 10, cellPadding: 5 },
+                headStyles: { fillColor: [66, 139, 202], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 245, 245] }
             });
 
-            // Detailed User Responses
-            yOffset += 10;
-            doc.text('Detailed User Responses:', 14, yOffset);
-            yOffset += 10;
-            selectedResponses.forEach((response, index) => {
-                doc.text(`User ${index + 1}: ${response.username}`, 14, yOffset);
-                yOffset += 10;
-                Object.entries(response.answers).forEach(([questionId, answer]) => {
+            // Add Detailed User Responses
+            doc.addPage();
+            doc.setFontSize(16);
+            doc.setTextColor(40, 40, 40);
+            doc.text('Detailed User Responses', 40, 40);
+
+            const userResponsesData = selectedResponses.flatMap((response, index) =>
+                Object.entries(response.answers).map(([questionId, answer]) => {
                     const question = selectedSurveyData.questions.find(q => q.id === questionId);
-                    if (question) {
-                        doc.text(`   ${question.text}: ${answer}`, 14, yOffset);
-                        yOffset += 10;
-                    }
-                });
-                yOffset += 5;
-                if (yOffset > 270) {
-                    doc.addPage();
-                    yOffset = 20;
-                }
+                    return [
+                        `User ${index + 1}: ${response.username}`,
+                        question ? question.text : 'Unknown Question',
+                        answer
+                    ];
+                })
+            );
+
+            doc.autoTable({
+                startY: 60,
+                head: [['User', 'Question', 'Answer']],
+                body: userResponsesData,
+                styles: { fontSize: 8, cellPadding: 5 },
+                headStyles: { fillColor: [66, 139, 202], textColor: 255 },
+                alternateRowStyles: { fillColor: [245, 245, 245] }
             });
+
+            // Add chart
+            if (chartRef.current) {
+                doc.addPage();
+                doc.setFontSize(16);
+                doc.setTextColor(40, 40, 40);
+                doc.text('Response Distribution Chart', 40, 40);
+
+                const canvas = document.createElement('canvas');
+                canvas.width = chartRef.current.offsetWidth;
+                canvas.height = chartRef.current.offsetHeight;
+                const ctx = canvas.getContext('2d');
+
+                if (ctx) {
+                    const chartNode = chartRef.current.querySelector('svg');
+                    if (chartNode) {
+                        const svgString = new XMLSerializer().serializeToString(chartNode);
+                        const img = new Image();
+                        img.onload = () => {
+                            ctx.drawImage(img, 0, 0);
+                            doc.addImage(canvas.toDataURL('image/png'), 'PNG', 40, 60, 500, 300);
+                            doc.save(`survey_analytics_${selectedData?.surveyTitle}.pdf`);
+                        };
+                        img.src = 'data:image/svg+xml;base64,' + btoa(svgString);
+                    }
+                }
+            } else {
+                doc.save(`survey_analytics_${selectedData?.surveyTitle}.pdf`);
+            }
         }
-
-        doc.save(`survey_analytics_${selectedData?.surveyTitle}.pdf`);
     };
-
     const exportToCSV = () => {
         const selectedData = aggregatedResponses.find(r => r.surveyId === selectedSurvey);
         const selectedSurveyData = surveys.find(s => s._id === selectedSurvey);

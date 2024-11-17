@@ -12,14 +12,13 @@ export default function SignInPage() {
     const [error, setError] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(false)
     const { data: session } = useSession()
+
     useEffect(() => {
         if (session) {
             const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
             router.push(redirectingRoles)
         }
     }, [session, router])
-
-
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -48,10 +47,10 @@ export default function SignInPage() {
                         setError('An error occurred. Please try again.')
                 }
             } else {
-
                 if (session) {
                     const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
                     router.push(redirectingRoles)
+                    router.refresh()
                 }
             }
         } catch (error) {
@@ -106,6 +105,14 @@ export default function SignInPage() {
                         </div>
                     )}
 
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm">
+                            <Link href="/forgot-password" className="font-medium text-indigo-600 hover:text-indigo-500">
+                                Forgot your password?
+                            </Link>
+                        </div>
+                    </div>
+
                     <div>
                         <button
                             type="submit"
@@ -118,7 +125,7 @@ export default function SignInPage() {
                 </form>
                 <div className="text-sm text-center">
                     <Link href="/signup" className="font-medium text-indigo-600 hover:text-indigo-500">
-                        Don`&apos;`t have an account? Sign up
+                        Don&apos;t have an account? Sign up
                     </Link>
                 </div>
             </div>

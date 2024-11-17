@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { auth } from "../../../../auth"
+import { useSession } from "next-auth/react"
 
 interface Question {
   id: string
@@ -47,6 +49,7 @@ const questionTypes = [
 ] as const
 
 export default function SurveyManagement() {
+  const { data: session } = useSession()
   const [surveys, setSurveys] = useState<Survey[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
@@ -63,7 +66,7 @@ export default function SurveyManagement() {
   })
   const [expandedSurveys, setExpandedSurveys] = useState<Set<string>>(new Set())
   const { toast } = useToast()
-  const router = useRouter()
+
 
   useEffect(() => {
     fetchSurveys()
@@ -86,7 +89,7 @@ export default function SurveyManagement() {
     setNewSurvey({
       title: "",
       description: "",
-      creatorId: "",
+      creatorId: session?.user.id as string,
       status: "draft",
       questions: [],
       createdAt: new Date().toISOString(),
@@ -138,7 +141,7 @@ export default function SurveyManagement() {
       }
 
       setIsDialogOpen(false)
-      toast({ title: "Success", description: `Survey ${currentSurvey ? "updated" : "created"} successfully` })
+      toast({ title: "Success", description: `Survey ${currentSurvey ? "updated" : "created"} successfully`, variant: "success" })
     } catch (error) {
       console.error("Error saving survey:", error)
       toast({ title: "Error", description: "Failed to save survey", variant: "destructive" })

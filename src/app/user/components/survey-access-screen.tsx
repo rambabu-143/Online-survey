@@ -109,8 +109,8 @@ export default function SurveyAccess() {
     fetchData()
   }, [toast])
 
-  const getUserResponse = (surveyId: string) => {
-    return responses.find(response => response.surveyId === surveyId)
+  const getUserResponse = () => {
+    return responses.find(response => response.userId === session?.user.id)
   }
 
   return (
@@ -171,7 +171,7 @@ export default function SurveyAccess() {
             <ScrollArea className="h-[400px] pr-4">
               {surveys.length > 0 ? (
                 surveys.map((survey) => {
-                  const userResponse = getUserResponse(survey._id)
+                  const userResponse = getUserResponse()
                   return (
                     <Card key={survey._id} className="mb-4">
                       <CardHeader className="pb-2">
