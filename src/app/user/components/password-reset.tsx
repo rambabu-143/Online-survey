@@ -28,7 +28,7 @@ export default function ResetPasswordForm({ token }: { token: string }) {
 
             if (response.ok) {
                 setSuccess(true)
-                setTimeout(() => router.push('/login'), 3000)
+                setTimeout(() => router.push('/'), 3000)
             } else {
                 const data = await response.json()
                 setError(data.message || 'Failed to reset password')
