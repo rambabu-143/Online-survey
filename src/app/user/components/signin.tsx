@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { redirect, useRouter } from 'next/navigation'
 import Link from 'next/link'
 
 export default function SignInPage() {
@@ -33,24 +33,13 @@ export default function SignInPage() {
             })
 
             if (result?.error) {
-                switch (result.error) {
-                    case 'CREDENTIALS_MISSING':
-                        setError('Please enter both email and password.')
-                        break
-                    case 'USER_NOT_FOUND':
-                        setError('No user found with this email.')
-                        break
-                    case 'INVALID_PASSWORD':
-                        setError('Invalid password. Please try again.')
-                        break
-                    default:
-                        setError('An error occurred. Please try again.')
-                }
+                setError(result.error)
             } else {
                 if (session) {
                     const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
-                    router.push(redirectingRoles)
                     router.refresh()
+                    redirect(redirectingRoles)
+
                 }
             }
         } catch (error) {

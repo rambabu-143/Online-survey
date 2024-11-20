@@ -2,7 +2,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import Link from "next/link"
 import { BarChart2, CheckCircle, Users } from 'lucide-react'
-import { signIn, signOut } from "next-auth/react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { auth } from "../../auth"
 import SignOutButton from "./user/components/signout"
 import { redirect } from "next/navigation"
+import { Role } from "./database/models/user"
 
 export default async function Home() {
   const session = await auth();

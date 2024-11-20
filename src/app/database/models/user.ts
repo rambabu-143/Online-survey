@@ -9,7 +9,10 @@ export interface IUser extends Document {
     createdAt: Date;
     updatedAt: Date;
 }
-
+export enum Role {
+    Admin = 'admin',
+    User = 'user'
+}
 const userSchema = new Schema<IUser>({
     username: { type: String, required: true, unique: true },
     email: { type: String, required: true, unique: true },
