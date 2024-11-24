@@ -3,7 +3,7 @@ import TemplatesPage from '../components/survey-templates-management'
 
 const page = () => {
     return (
-        <div><TemplatesPage /></div>
+        <><TemplatesPage /></>
     )
 }
 

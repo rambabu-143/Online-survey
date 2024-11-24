@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CalendarIcon, PlusCircleIcon, UsersIcon } from 'lucide-react'
 import { Bar, BarChart, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 
@@ -35,6 +36,7 @@ interface Response {
   userId?: string;
   answers?: Map<string, string>;
   submittedAt: string;
+  completionTime?: number; // in seconds
 }
 
 interface AdminDashboardProps {
@@ -45,6 +47,14 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ surveys, responses }: AdminDashboardProps) {
   const [surveyData, setSurveyData] = useState<{ name: string; total: number; active: number }[]>([])
   const [responseData, setResponseData] = useState<{ name: string; responses: number }[]>([])
+  const [selectedSurvey, setSelectedSurvey] = useState<string>(surveys[0]?._id || '')
+  const [averageResponseTimes, setAverageResponseTimes] = useState<{ name: string; time: number }[]>([])
+  const [leaderboard, setLeaderboard] = useState<{ name: string; count: number }[]>([])
+  const [surveyInsights, setSurveyInsights] = useState<{
+    totalResponses: number;
+    completionRate: number;
+    averageTime: number;
+  }>({ totalResponses: 0, completionRate: 0, averageTime: 0 })
 
   useEffect(() => {
     // Process survey data
@@ -60,21 +70,45 @@ export default function AdminDashboard({ surveys, responses }: AdminDashboardPro
       return acc
     }, [] as { name: string; total: number; active: number }[])
 
-    // Process response data
-    const processedResponseData = responses.reduce((acc, response) => {
-      const day = new Date(response.submittedAt).toLocaleString('default', { weekday: 'short' })
-      const existingDay = acc.find(item => item.name === day)
-      if (existingDay) {
-        existingDay.responses++
-      } else {
-        acc.push({ name: day, responses: 1 })
-      }
-      return acc
-    }, [] as { name: string; responses: number }[])
+    // Process response data for the selected survey
+    const processedResponseData = responses
+      .filter(response => response.surveyId === selectedSurvey)
+      .reduce((acc, response) => {
+        const day = new Date(response.submittedAt).toLocaleString('default', { weekday: 'short' })
+        const existingDay = acc.find(item => item.name === day)
+        if (existingDay) {
+          existingDay.responses++
+        } else {
+          acc.push({ name: day, responses: 1 })
+        }
+        return acc
+      }, [] as { name: string; responses: number }[])
+
+    // Calculate average response times
+    const avgResponseTimes = surveys.map(survey => {
+      const surveyResponses = responses.filter(r => r.surveyId === survey._id)
+      const avgTime = surveyResponses.reduce((sum, r) => sum + (r.completionTime || 0), 0) / surveyResponses.length
+      return { name: survey.title, time: avgTime }
+    })
+
+    // Create leaderboard
+    const leaderboardData = surveys.map(survey => ({
+      name: survey.title,
+      count: responses.filter(r => r.surveyId === survey._id).length
+    })).sort((a, b) => b.count - a.count)
+
+    // Calculate survey-level insights
+    const selectedSurveyResponses = responses.filter(r => r.surveyId === selectedSurvey)
+    const totalResponses = selectedSurveyResponses.length
+    const completionRate = (totalResponses / responses.length) * 100
+    const averageTime = selectedSurveyResponses.reduce((sum, r) => sum + (r.completionTime || 0), 0) / totalResponses
 
     setSurveyData(processedSurveyData)
     setResponseData(processedResponseData)
-  }, [surveys, responses])
+    setAverageResponseTimes(avgResponseTimes)
+    setLeaderboard(leaderboardData)
+    setSurveyInsights({ totalResponses, completionRate, averageTime })
+  }, [surveys, responses, selectedSurvey])
 
   const totalSurveys = surveys.length
   const activeSurveys = surveys.filter(survey => survey.status === 'active').length
@@ -164,39 +198,69 @@ export default function AdminDashboard({ surveys, responses }: AdminDashboardPro
             </div>
           </TabsContent>
           <TabsContent value="analytics" className="space-y-4">
+            <div className="mb-4">
+              <Select onValueChange={setSelectedSurvey} defaultValue={selectedSurvey}>
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue placeholder="Select a survey" />
+                </SelectTrigger>
+                <SelectContent>
+                  {surveys.map((survey) => (
+                    <SelectItem key={survey._id} value={survey._id}>{survey.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Total Responses</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{surveyInsights.totalResponses}</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Completion Rate</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{surveyInsights.completionRate.toFixed(2)}%</div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Average Time</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{surveyInsights.averageTime.toFixed(2)} seconds</div>
+                </CardContent>
+              </Card>
+            </div>
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
               <Card className="col-span-4">
                 <CardHeader>
-                  <CardTitle>Survey Completion Rates</CardTitle>
+                  <CardTitle>Average Response Times</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <LineChart data={surveys.map(survey => ({
-                      name: survey.title,
-                      completionRate: (responses.filter(r => r.surveyId === survey._id).length / totalResponses) * 100
-                    }))}>
+                    <BarChart data={averageResponseTimes}>
                       <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value.toFixed(0)}%`} />
-                      <Line type="monotone" dataKey="completionRate" stroke="#8884d8" strokeWidth={2} dot={{ fill: "#8884d8", r: 8 }} />
-                    </LineChart>
+                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Average Time (seconds)', angle: -90, position: 'insideLeft' }} />
+                      <Bar dataKey="time" fill="#8884d8" radius={[4, 4, 0, 0]} />
+                    </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
               <Card className="col-span-3">
                 <CardHeader>
-                  <CardTitle>Survey Distribution</CardTitle>
-                  <CardDescription>By status</CardDescription>
+                  <CardTitle>Survey Leaderboard</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={300}>
-                    <BarChart data={[
-                      { name: "Active", count: activeSurveys },
-                      { name: "Draft", count: surveys.filter(s => s.status === 'draft').length },
-                      { name: "Closed", count: surveys.filter(s => s.status === 'closed').length },
-                    ]}>
-                      <XAxis dataKey="name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
-                      <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `${value}`} />
-                      <Bar dataKey="count" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                    <BarChart data={leaderboard} layout="vertical">
+                      <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} label={{ value: 'Response Count', position: 'insideBottom', offset: -5 }} />
+                      <YAxis dataKey="name" type="category" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={100} />
+                      <Bar dataKey="count" fill="#82ca9d" radius={[0, 4, 4, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -208,3 +272,4 @@ export default function AdminDashboard({ surveys, responses }: AdminDashboardPro
     </div>
   )
 }
+

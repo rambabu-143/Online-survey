@@ -44,7 +44,7 @@ export async function PATCH(
         if (!updatedTemplate) {
             return NextResponse.json(
                 { error: 'Template not found' },
-                { status: 404 }     
+                { status: 404 }
             );
         }
 
@@ -82,6 +82,36 @@ export async function DELETE(
         console.error('Error deleting template:', error);
         return NextResponse.json(
             { error: 'Error deleting template' },
+            { status: 500 }
+        );
+    }
+}
+
+export async function PUT(
+    req: NextRequest,
+    { params }: { params: { id: string } }
+) {
+    try {
+        await dbConnect();
+        const body = await req.json();
+        const updatedTemplate = await Template.findByIdAndUpdate(params.id, body, {
+            new: true,
+            runValidators: true,
+            overwrite: true, // This ensures a full update
+        });
+
+        if (!updatedTemplate) {
+            return NextResponse.json(
+                { error: 'Template not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json(updatedTemplate);
+    } catch (error) {
+        console.error('Error updating template:', error);
+        return NextResponse.json(
+            { error: 'Error updating template' },
             { status: 500 }
         );
     }

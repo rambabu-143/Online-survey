@@ -7,12 +7,17 @@ export interface ISurvey extends Document {
     status: 'draft' | 'active' | 'closed';
     questions: {
         id: string;
-        type: 'multiple-choice' | 'text-input' | 'rating-scale';
+        type: 'multiple-choice' | 'text-input' | 'rating-scale' | 'dropdown' | 'slider';
         text: string;
         options?: string[];
         required: boolean;
         min?: number;
         max?: number;
+        conditionalBranching?: {
+            targetQuestionId: string;
+            condition: 'equals' | 'greater-than' | 'less-than';
+            value: string | number;
+        };
     }[];
     assignedGroups: mongoose.Types.ObjectId[];
     createdAt: Date;
@@ -29,7 +34,7 @@ const surveySchema = new Schema<ISurvey>({
         id: String,
         type: {
             type: String,
-            enum: ['multiple-choice', 'text-input', 'rating-scale'],
+            enum: ['multiple-choice', 'text-input', 'rating-scale', 'dropdown', 'slider'],
             required: true,
         },
         text: String,
@@ -37,6 +42,14 @@ const surveySchema = new Schema<ISurvey>({
         required: Boolean,
         min: Number,
         max: Number,
+        conditionalBranching: {
+            targetQuestionId: String,
+            condition: {
+                type: String,
+                enum: ['equals', 'greater-than', 'less-than']
+            },
+            value: Schema.Types.Mixed
+        }
     }],
     assignedGroups: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Group' }],
     createdAt: { type: Date, default: Date.now },

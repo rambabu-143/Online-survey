@@ -425,7 +425,10 @@ export default function UserManagement() {
                   </SelectContent>
                 </Select>
               </TableCell>
-              <TableCell>{user.groups ? user.groups.join(', ') : ''}</TableCell>
+              <TableCell> {user.groups.map((groupId) => {
+                const group = groups.find((g) => g._id === groupId);
+                return group ? group.name : '';
+              }).join(', ')}</TableCell>
               <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
               <TableCell>{new Date(user.updatedAt).toLocaleDateString()}</TableCell>
               <TableCell>
