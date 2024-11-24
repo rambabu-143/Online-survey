@@ -119,7 +119,7 @@ export default function SignInPage() {
                 <div className="w-full lg:w-1/2 flex items-center justify-center p-8 lg:p-24">
                     <div className="w-full max-w-md space-y-8">
                         <div className="text-left">
-                            <span className="text-gray-600">Don't have an account?</span>{" "}
+                            <span className="text-gray-600">Don&apos;t have an account?</span>{" "}
                             <Link href="/signup" className="text-violet-800 underline font-semibold">
                                 Sign up
                             </Link>
