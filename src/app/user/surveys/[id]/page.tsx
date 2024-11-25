@@ -1,20 +1,15 @@
 import { Suspense } from 'react'
-import { notFound, redirect } from 'next/navigation'
 import TakeSurvey from '@/app/user/components/takesurvey'
+import { redirect } from 'next/navigation'
 import { auth } from '../../../../../auth'
 
 async function fetchData(url: string) {
-    const res = await fetch(url, {
-        cache: 'no-store',
-        headers: {
-            'Cache-Control': 'no-cache'
-        }
-    })
-    if (!res.ok) {
-        console.error(`Error fetching data from ${url}:`, res.statusText)
+    const response = await fetch(url, { cache: 'no-store' })
+    if (!response.ok) {
+        console.error(`Error fetching data from ${url}:`, response.statusText)
         return null
     }
-    return res.json()
+    return response.json()
 }
 
 export default async function SurveyPage({ params }: { params: { id: string } }) {
@@ -25,19 +20,10 @@ export default async function SurveyPage({ params }: { params: { id: string } })
     }
 
     const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
-    const [responseData, groupsData, surveyData] = await Promise.all([
+    const [responseData, groupsData] = await Promise.all([
         fetchData(`${baseUrl}/api/responses`),
         fetchData(`${baseUrl}/api/groups`),
-        fetchData(`${baseUrl}/api/surveys/${params.id}`),
-    ]).catch(error => {
-        console.error('Error fetching data:', error)
-        return [null, null, null]
-    })
-
-    if (!surveyData) {
-        console.error('Survey data not found')
-        notFound()
-    }
+    ])
 
     if (responseData) {
         const userResponse = responseData.find((response: any) =>
@@ -67,9 +53,8 @@ export default async function SurveyPage({ params }: { params: { id: string } })
     return (
         <div className="container mx-auto py-10">
             <Suspense fallback={<div>Loading...</div>}>
-                <TakeSurvey survey={surveyData} userId={session.user.id as string} />
+                <TakeSurvey surveyId={params.id} userId={session.user.id} />
             </Suspense>
         </div>
     )
 }
-
