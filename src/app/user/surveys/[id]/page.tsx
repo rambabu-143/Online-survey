@@ -20,7 +20,7 @@ export default async function SurveyPage({ params }: { params: { id: string } })
         redirect('/signin')
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
     const [responseData, groupsData] = await Promise.all([
         fetchData(`${baseUrl}/api/responses`),
         fetchData(`${baseUrl}/api/groups`),
