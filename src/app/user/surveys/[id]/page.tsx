@@ -4,8 +4,16 @@ import TakeSurvey from '@/app/user/components/takesurvey'
 import { auth } from '../../../../../auth'
 
 async function fetchData(url: string) {
-    const res = await fetch(url, { cache: 'no-store' })
-    if (!res.ok) return null
+    const res = await fetch(url, {
+        cache: 'no-store',
+        headers: {
+            'Cache-Control': 'no-cache'
+        }
+    })
+    if (!res.ok) {
+        console.error(`Error fetching data from ${url}:`, res.statusText)
+        return null
+    }
     return res.json()
 }
 
@@ -21,7 +29,15 @@ export default async function SurveyPage({ params }: { params: { id: string } })
         fetchData(`${baseUrl}/api/responses`),
         fetchData(`${baseUrl}/api/groups`),
         fetchData(`${baseUrl}/api/surveys/${params.id}`),
-    ])
+    ]).catch(error => {
+        console.error('Error fetching data:', error)
+        return [null, null, null]
+    })
+
+    if (!surveyData) {
+        console.error('Survey data not found')
+        notFound()
+    }
 
     if (responseData) {
         const userResponse = responseData.find((response: any) =>
@@ -46,10 +62,6 @@ export default async function SurveyPage({ params }: { params: { id: string } })
 
     if (!isAssigned) {
         redirect('/user/survey-access')
-    }
-
-    if (!surveyData) {
-        return <div>Survey not found</div>
     }
 
     return (

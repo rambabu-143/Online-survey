@@ -56,15 +56,25 @@ export default function TakeSurvey({ survey, userId }: { survey: Survey; userId:
                 submittedAt: new Date().toISOString()
             }
 
-            await fetch(`/api/responses`, {
+            const res = await fetch(`/api/responses`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(response),
             })
+
+            if (!res.ok) {
+                throw new Error('Failed to submit survey')
+            }
+
             router.push(`/user/surveys/${survey._id}/thank-you`)
         } catch (error) {
             console.error('Error submitting survey:', error)
+            // Handle error (e.g., show error message to user)
         }
+    }
+
+    if (!survey || !survey.questions || survey.questions.length === 0) {
+        return <div>Error: Invalid survey data</div>
     }
 
     const currentQuestion = survey.questions[currentQuestionIndex]
