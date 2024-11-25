@@ -16,7 +16,7 @@ export default async function ThankYou({ params }: Props) {
         redirect('/api/auth/signin')
     }
 
-    const baseUrl = process.env.NEXTAUTH_URL || 'http://localhost:3000'
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL
     const response = await fetch(`${baseUrl}/api/responses`, {
         headers: {
             'Cookie': `next-auth.session-token=${session.user.id}`
