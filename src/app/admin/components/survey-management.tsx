@@ -11,7 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider"
 import { Plus, Edit, Trash2, Save, ChevronDown, ChevronUp } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
 
 interface Question {
@@ -67,8 +66,8 @@ export default function SurveyManagement() {
     updatedAt: new Date().toISOString(),
   })
   const [expandedSurveys, setExpandedSurveys] = useState<Set<string>>(new Set())
+  const [showExistingDialog, setShowExistingDialog] = useState(false)
   const { toast } = useToast()
-  const router = useRouter()
 
   useEffect(() => {
     fetchSurveys()
@@ -122,6 +121,21 @@ export default function SurveyManagement() {
   }
 
   const handleSaveSurvey = async () => {
+
+
+    if (!newSurvey.title.trim()) {
+      toast({ title: "Error", description: "Please enter a survey title", variant: "destructive" })
+      return
+    }
+
+    const existingSurvey = surveys.find(
+      survey => survey.title === newSurvey.title && survey.description === newSurvey.description
+    )
+
+    if (existingSurvey && !currentSurvey) {
+      setShowExistingDialog(true)
+      return
+    }
     try {
       const surveyData = { ...newSurvey, updatedAt: new Date().toISOString() }
       const url = currentSurvey ? `/api/surveys/${currentSurvey._id}` : "/api/surveys"
@@ -509,6 +523,20 @@ export default function SurveyManagement() {
             <Button onClick={handleSaveSurvey}>
               <Save className="mr-2 h-4 w-4" /> Save Survey
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showExistingDialog} onOpenChange={setShowExistingDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Survey Already Exists</DialogTitle>
+            <DialogDescription>
+              A survey with the same title and description already exists. Please modify your survey details and try again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowExistingDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

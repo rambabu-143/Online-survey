@@ -21,6 +21,7 @@ import { GripVertical, Plus, X, Save, LayoutTemplate } from 'lucide-react'
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface Question {
   id: string
@@ -56,6 +57,8 @@ export default function SurveyBuilder() {
   const [activeTab, setActiveTab] = useState("builder")
   const { toast } = useToast()
   const router = useRouter()
+  const [showExistingDialog, setShowExistingDialog] = useState(false)
+  const [existingItemType, setExistingItemType] = useState<'survey' | 'template' | null>(null)
 
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
@@ -93,6 +96,45 @@ export default function SurveyBuilder() {
   }
 
 
+
+  const checkExistingSurvey = async (title: string, description: string) => {
+    try {
+      const response = await fetch("/api/surveys/check-existing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+      })
+
+      if (!response.ok) throw new Error("Failed to check existing surveys")
+
+      const { exists } = await response.json()
+      return exists
+    } catch (error) {
+      console.error("Error checking existing surveys:", error)
+      return false
+    }
+  }
+
+  const checkExistingTemplate = async (title: string, description: string) => {
+    try {
+      const response = await fetch("/api/templates/check-existing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+      })
+
+      if (!response.ok) throw new Error("Failed to check existing templates")
+
+      const { exists } = await response.json()
+      return exists
+    } catch (error) {
+      console.error("Error checking existing templates:", error)
+      return false
+    }
+  }
+
+
+
   const handlePublish = async () => {
     if (!survey.title.trim()) {
       toast({ title: "Error", description: "Please enter a survey title", variant: "destructive" })
@@ -110,6 +152,13 @@ export default function SurveyBuilder() {
     }
 
     try {
+      const exists = await checkExistingSurvey(survey.title, survey.description || "")
+      if (exists) {
+        setExistingItemType('survey')
+        setShowExistingDialog(true)
+        return
+      }
+
       const response = await fetch("/api/surveys", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -146,6 +195,12 @@ export default function SurveyBuilder() {
     }
 
     try {
+      const exists = await checkExistingTemplate(survey.title, survey.description || "")
+      if (exists) {
+        setExistingItemType('template')
+        setShowExistingDialog(true)
+        return
+      }
       const response = await fetch("/api/templates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -435,6 +490,19 @@ export default function SurveyBuilder() {
           Save as Template
         </Button>
       </div>
+      <Dialog open={showExistingDialog} onOpenChange={setShowExistingDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{existingItemType === 'survey' ? 'Survey' : 'Template'} Already Exists</DialogTitle>
+            <DialogDescription>
+              A {existingItemType} with the same title and description already exists. Please modify your details and try again.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => setShowExistingDialog(false)}>Close</Button>
+        </DialogContent>
+      </Dialog>
+
+
     </div>
   )
 }

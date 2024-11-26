@@ -3,7 +3,7 @@ import SurveyBuilder from '../components/new-survey-creator'
 
 const Page = () => {
   return (
-    <div> <SurveyBuilder /></div>
+    <> <SurveyBuilder /></>
   )
 }
 

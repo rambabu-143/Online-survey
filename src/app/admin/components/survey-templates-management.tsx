@@ -55,6 +55,7 @@ export default function SurveyTemplateManagement() {
   const [expandedTemplates, setExpandedTemplates] = useState<Set<string>>(new Set())
   const { toast } = useToast()
   const router = useRouter()
+  const [showExistingDialog, setShowExistingDialog] = useState(false)
   const { data: session, status } = useSession()
 
   useEffect(() => {
@@ -106,6 +107,20 @@ export default function SurveyTemplateManagement() {
   }
 
   const handleSaveTemplate = async () => {
+
+    if (!newTemplate.title.trim()) {
+      toast({ title: "Error", description: "Please enter a survey title", variant: "destructive" })
+      return
+    }
+
+    const existingSurvey = templates.find(
+      template => template.title === newTemplate.title && template.description === newTemplate.description
+    )
+
+    if (existingSurvey && !currentTemplate) {
+      setShowExistingDialog(true)
+      return
+    }
     try {
       const templateData = { ...newTemplate, createdAt: new Date().toISOString() }
       const url = currentTemplate ? `/api/templates/${currentTemplate._id}` : "/api/templates"
@@ -489,6 +504,20 @@ items-center mb-2">
             <Button onClick={handleSaveTemplate}>
               <Save className="mr-2 h-4 w-4" /> Save Template
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showExistingDialog} onOpenChange={setShowExistingDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Survey Already Exists</DialogTitle>
+            <DialogDescription>
+              A Template with the same title and description already exists. Please modify your survey details and try again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button onClick={() => setShowExistingDialog(false)}>Close</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
