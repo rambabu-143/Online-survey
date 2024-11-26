@@ -1,6 +1,6 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
-interface IResponse extends Document {
+export interface IResponse extends Document {
     surveyId: mongoose.Types.ObjectId;
     userId?: mongoose.Types.ObjectId; // Optional for anonymous responses
     answers?: Map<string, string>; // Keyed by Question IDs
@@ -9,7 +9,7 @@ interface IResponse extends Document {
 
 const responseSchema = new Schema<IResponse>({
     surveyId: { type: mongoose.Schema.Types.ObjectId, ref: "Survey", required: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Optional for anonymous responses
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Optional for anonymous responses
     answers: { type: Map, of: String }, // Keyed by Question IDs
     submittedAt: { type: Date, default: Date.now }
 });

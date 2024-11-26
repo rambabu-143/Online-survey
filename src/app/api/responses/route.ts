@@ -1,91 +1,88 @@
-import { NextRequest, NextResponse } from 'next/server'
-import dbConnect from '@/app/database/utils/mongodb'
-import Response from '@/app/database/models/response'
+import { NextRequest, NextResponse } from 'next/server';
+import dbConnect from '@/app/database/utils/mongodb';
+import Response from '@/app/database/models/response';
+import User from '@/app/database/models/user'; // Ensure the model is imported
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
-        await dbConnect()
+        await dbConnect(); // Connect to the database
 
-        const body = await request.json()
-        const { surveyId, userId, answers, submittedAt } = body
+        const body = await request.json();
+        const { surveyId, userId, answers, submittedAt } = body;
 
+        if (!surveyId || !userId || !answers) {
+            return NextResponse.json(
+                { message: 'Missing required fields' },
+                {
+                    status: 400,
+                    headers: { 'Cache-Control': 'no-store, max-age=0' },
+                }
+            );
+        }
+
+        // Create a new Response document
         const response = new Response({
             surveyId,
             userId,
             answers,
-            submittedAt
-        })
+            submittedAt,
+        });
 
-        await response.save()
+        await response.save(); // Save the response document
 
-        return NextResponse.json({ message: 'Response submitted successfully' }, {
-            status: 201, headers: {
-                'Cache-Control': 'no-store, max-age=0',
-            },
-        })
+        return NextResponse.json(
+            { message: 'Response submitted successfully' },
+            {
+                status: 201,
+                headers: { 'Cache-Control': 'no-store, max-age=0' },
+            }
+        );
     } catch (error) {
-        console.error('Error submitting response:', error)
-        return NextResponse.json({ message: 'Error submitting response' }, {
-            status: 500, headers: {
-                'Cache-Control': 'no-store, max-age=0',
-            },
-        })
+        console.error('Error submitting response:', error);
+        return NextResponse.json(
+            { message: 'Error submitting response' },
+            {
+                status: 500,
+                headers: { 'Cache-Control': 'no-store, max-age=0' },
+            }
+        );
     }
 }
 
-// export async function GET(request: NextRequest) {
-//     try {
-//         await dbConnect()
-
-//         const searchParams = request.nextUrl.searchParams
-//         const userId = searchParams.get('userId')
-
-//         let query = {}
-//         if (userId) {
-//             query = { userId }
-//         }
-
-//         const responses = await Response.find(query).lean()
-
-//         return NextResponse.json(responses)
-//     } catch (error) {
-//         console.error('Error fetching responses:', error)
-//         return NextResponse.json({ message: 'Error fetching responses' }, { status: 500 })
-//     }
-// }
-
-
-
-export async function GET() {
+export async function GET(): Promise<NextResponse> {
     try {
-        await dbConnect(); // Ensure MongoDB is connected
+        await dbConnect(); // Connect to the database
 
         // Fetch responses and populate `userId` to get `username`
         const responses = await Response.find()
             .populate('userId', 'username') // Populate only the username field
             .exec();
 
-        // Format the responses for the frontend
+        // Format the responses for frontend consumption
         const formattedResponses = responses.map((response) => ({
-            _id: response._id,
+            _id: response._id.toString(),
             surveyId: response.surveyId,
-            userId: response.userId?._id || null,
+            userId: response.userId?._id.toString() || null,
             username: response.userId?.username || 'Anonymous',
             answers: response.answers,
             submittedAt: response.submittedAt,
         }));
 
-        return NextResponse.json(formattedResponses, {
-            status: 200, headers: {
-                'Cache-Control': 'no-store, max-age=0',
-            },
-        },);
+        return NextResponse.json(
+            formattedResponses,
+            {
+                status: 200,
+                headers: { 'Cache-Control': 'no-store, max-age=0' },
+            }
+        );
     } catch (error) {
         console.error('Error fetching responses:', error);
-        return NextResponse.json({ error: 'Failed to fetch responses' }, {
-            status: 500, headers: {
-                'Cache-Control': 'no-store, max-age=0',
-            },
-        });
+        return NextResponse.json(
+            { error: 'Failed to fetch responses' },
+            {
+                status: 500,
+                headers: { 'Cache-Control': 'no-store, max-age=0' },
+            }
+        );
     }
 }
