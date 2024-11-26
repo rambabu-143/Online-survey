@@ -6,6 +6,7 @@ import User from '@/app/database/models/user'; // Ensure the model is imported
 export async function POST(request: NextRequest): Promise<NextResponse> {
     try {
         await dbConnect(); // Connect to the database
+        console.log('User model:', User);
 
         const body = await request.json();
         const { surveyId, userId, answers, submittedAt } = body;

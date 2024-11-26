@@ -5,7 +5,7 @@ import Survey from '@/app/database/models/survey';
 export async function GET() {
     try {
         await dbConnect();
-        const surveys = await Survey.find({}).sort({ createdAt: -1 });
+        const surveys = await Survey.find({}).sort({ createdAt: -1 }).lean();;
         return NextResponse.json(surveys);
     } catch (error) {
         console.error('Error fetching surveys:', error);
