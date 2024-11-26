@@ -218,30 +218,6 @@ export default function SurveyAccess() {
                                       Submitted on: {new Date(userResponse.submittedAt).toLocaleString()}
                                     </DialogDescription>
                                   </DialogHeader>
-                                  <div className="grid gap-4 py-4">
-                                    {questions[survey._id]?.map((question) => (
-                                      <div key={question._id} className="grid grid-cols-4 items-center gap-4">
-                                        <Label htmlFor={question._id} className="text-right">
-                                          {question.text}
-                                        </Label>
-                                        {question.type === 'textarea' ? (
-                                          <Textarea
-                                            id={question._id}
-                                            defaultValue={userResponse.answers[question._id]}
-                                            className="col-span-3"
-                                            readOnly
-                                          />
-                                        ) : (
-                                          <Input
-                                            id={question._id}
-                                            defaultValue={userResponse.answers[question._id]}
-                                            className="col-span-3"
-                                            readOnly
-                                          />
-                                        )}
-                                      </div>
-                                    ))}
-                                  </div>
                                 </DialogContent>
                               </Dialog>
 
