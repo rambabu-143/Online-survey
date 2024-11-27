@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Clock, ArrowRight, Loader2, CheckCircle, X } from 'lucide-react'
+import { Clock, ArrowRight, Loader2, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -16,9 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,12 +106,13 @@ export default function SurveyAccess() {
     fetchData()
   }, [toast])
 
-  const getUserResponse = () => {
-    return responses.find(response => response.userId === session?.user.id)
+  const getUserResponse = (surveyId: string) => {
+    return responses.find(response => response.userId === session?.user.id && response.surveyId === surveyId)
   }
 
   return (
     <>
+      {/* Header component remains unchanged */}
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-6 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-blue-600">SurveyInsight</h1>
@@ -171,7 +169,7 @@ export default function SurveyAccess() {
             <ScrollArea className="h-[400px] pr-4">
               {surveys.length > 0 ? (
                 surveys.map((survey) => {
-                  const userResponse = getUserResponse()
+                  const userResponse = getUserResponse(survey._id)
                   return (
                     <Card key={survey._id} className="mb-4">
                       <CardHeader className="pb-2">
@@ -201,10 +199,8 @@ export default function SurveyAccess() {
                             </p>
                           </div>
                           <div className='flex justify-end items-center'>
-
-
                             {userResponse ? (
-                              <Dialog >
+                              <Dialog>
                                 <DialogTrigger asChild>
                                   <Button variant="outline" className="mt-2 w-fit">
                                     View Response
@@ -218,9 +214,9 @@ export default function SurveyAccess() {
                                       Submitted on: {new Date(userResponse.submittedAt).toLocaleString()}
                                     </DialogDescription>
                                   </DialogHeader>
+                                  {/* Add response details here */}
                                 </DialogContent>
                               </Dialog>
-
                             ) : (
                               <Button
                                 asChild
@@ -250,3 +246,4 @@ export default function SurveyAccess() {
     </>
   )
 }
+
