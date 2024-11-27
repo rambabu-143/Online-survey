@@ -27,6 +27,7 @@ export default function SignInPage() {
         if (session) {
             const redirectingRoles = session.user.role === 'admin' ? '/admin' : '/'
             router.push(redirectingRoles)
+            router.refresh()
         }
     }, [session, router])
 
